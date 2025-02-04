@@ -19,5 +19,10 @@ jobs:
       - uses: cargo-bins/cargo-binstall@main
       - run: cargo binstall trunk
       - run: trunk build --release
+      - name: Add SSH host key to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H 67.43.227.184 >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
       - name: Deploy with SCP
         run: scp -r ./dist/* deploy@67.43.227.184:/var/www/oncartforthee.ca
