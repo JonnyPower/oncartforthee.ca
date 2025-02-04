@@ -18,6 +18,8 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_DEPLOY_KEY }}
 
+      - uses: cargo-bins/cargo-binstall@main
+
       - name: Trunk Install
         run: cargo binstall trunk
 
