@@ -1,7 +1,13 @@
 <html lang="en-CA">
     <head>
         <link data-trunk rel="scss" href="static/index.scss"/>
-        <link data-trunk rel="rust"/>
         <title>&#x1F1E8&#x1F1E6 &#x1F6D2</title>
     </head>
+    <body>
+        <div id="message">Loading...</div>
+        <link data-trunk rel="rust"
+              data-wasm-opt="z"
+              data-initializer="static/init.mjs"
+        />
+    </body>
 </html>
