@@ -42,12 +42,14 @@ fn title_menu_setup(
             height: Val::Vh(100.0),
             ..default()
         },
+        TitleMenuTag
     ));
 }
 
 fn title_menu_system(
     mut contexts: EguiContexts,
     mut title_menu_state: ResMut<NextState<TitleMenuState>>,
+    mut app_state: ResMut<NextState<AppState>>,
 ) {
     egui::SidePanel::left("title_left_panel")
         .frame(
@@ -64,7 +66,7 @@ fn title_menu_system(
                     .text_style(TextStyle::Heading)
                     .size(32.)
             );
-            new_game_button(ui, &mut title_menu_state);
+            new_game_button(ui, &mut app_state);
             settings_button(ui, &mut title_menu_state);
         });
 }
@@ -84,10 +86,10 @@ fn title_button(ui: &mut Ui, text: &str) -> Response {
 
 fn new_game_button(
     ui: &mut Ui,
-    title_menu_state: &mut ResMut<NextState<TitleMenuState>>,
+    app_state: &mut ResMut<NextState<AppState>>,
 ) {
     if title_button(ui, "New Game").clicked() {
-        title_menu_state.set(TitleMenuState::NewGame);
+        app_state.set(AppState::InGame);
     }
 }
 
