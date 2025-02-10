@@ -17,11 +17,18 @@ jobs:
         with:
           shared-key: "wasm32-release"
       - run: trunk build --release
+      - uses: actions/upload-artifact@v3
+        with:
+          name: dist-${{ github.sha }}
+          path: dist
   deployment:
     runs-on: ubuntu-latest
     environment: production
     needs: build
     steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: dist-${{ github.sha }}
       - uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.SSH_DEPLOY_KEY }}
