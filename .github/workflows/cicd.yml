@@ -25,7 +25,7 @@ jobs:
       - name: Add SSH host key to known_hosts
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H oncartforthee.ca >> ~/.ssh/known_hosts
+          echo "${{ secrets.KEYSCAN }}" >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
       - name: Deploy with SCP
         run: scp -r ./dist/* deploy@oncartforthee.ca:/var/www/oncartforthee.ca
