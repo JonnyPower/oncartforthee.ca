@@ -1,4 +1,4 @@
-name: On Cart For Thee - CI/CD
+name: CI/CD
 
 on: [push]
 
@@ -6,19 +6,22 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'  # Only deploy on the default branch
     steps:
       - uses: actions/checkout@v4
-      - uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_DEPLOY_KEY }}
       - run: rustup target add wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
       - uses: cargo-bins/cargo-binstall@main
       - run: cargo binstall trunk --force
       - run: trunk build --release
+  deployment:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_DEPLOY_KEY }}
       - name: Add SSH host key to known_hosts
         run: |
           mkdir -p ~/.ssh
