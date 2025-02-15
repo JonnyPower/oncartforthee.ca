@@ -23,7 +23,7 @@ fn setup_camera(
                 order: 1,
                 ..default()
             },
-            Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+            Transform::from_xyz(0.0, 10.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
             GameCamera,
         )
     );

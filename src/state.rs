@@ -1,5 +1,6 @@
 use bevy::app::App;
 use bevy::prelude::{AppExtStates, NextState, OnEnter, OnExit, Plugin, ResMut, States};
+use web_sys::console::debug;
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, States)]
 pub enum AppState {
