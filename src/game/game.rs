@@ -67,11 +67,11 @@ fn setup_scene(
         Transform::from_xyz(0.0, 0.0, 0.0),
         Player,
         MovementSettings {
-            speed: 125.0,
-            max_speed: 350.0
+            speed: 4.0,
+            max_speed: 50.0
         },
         Damping {
-            linear_damping: 5.0,
+            linear_damping: 8.0,
             angular_damping: 1.0,
         }
     )).with_children(|parent| {

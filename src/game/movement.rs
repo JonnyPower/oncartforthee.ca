@@ -96,7 +96,7 @@ fn handle_movement(
         Ok((mut player_t, player_velocity, mut player_impulse, player_ms)) => {
             if direction != Vec3::ZERO {
                 direction = direction.normalize();
-                let impulse_force = direction * player_ms.speed * time.delta_secs() * if keys.pressed(KeyCode::ShiftLeft) { 2.0 } else { 1.0 };
+                let impulse_force = direction * player_ms.speed * if keys.pressed(KeyCode::ShiftLeft) { 2.0 } else { 1.0 };
                 if player_velocity.linvel.length() < player_ms.max_speed {
                     player_impulse.impulse += impulse_force;
                     draw_run_particles(&mut commands, &player_t, &particle);
@@ -107,7 +107,6 @@ fn handle_movement(
                     player_t.rotation = target_rotation;
                 }
             }
-            
                 
             let mut camera_t = camera_q.single_mut();
             camera_t.translation = camera_t.translation.lerp(
@@ -116,7 +115,7 @@ fn handle_movement(
                     camera_t.translation.y,
                     player_t.translation.z,
                 ),
-                time.delta_secs() * 5.0,
+                1.0 - (-time.delta_secs() * 5.0).exp(),
             );
         }
         _ => {
