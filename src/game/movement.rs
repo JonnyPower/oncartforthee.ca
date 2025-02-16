@@ -104,7 +104,7 @@ fn handle_movement(
             }
             let mut camera_t = camera_q.single_mut();
             camera_t.translation = camera_t.translation.lerp(
-                Vec3::new(player_t.translation.x + 2.0, camera_t.translation.y, player_t.translation.z),
+                Vec3::new(player_t.translation.x + 5.0, camera_t.translation.y, player_t.translation.z),
                 time.delta_secs() * 5.0
             );
         }

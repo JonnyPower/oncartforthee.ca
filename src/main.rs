@@ -9,6 +9,7 @@ use bevy::prelude::{App, AssetPlugin, default, PluginGroup, Window, WindowPlugin
 use bevy::render::RenderPlugin;
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy_egui::EguiPlugin;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::{NoUserData, RapierDebugRenderPlugin, RapierPhysicsPlugin};
 use crate::camera::CameraPlugin;
 use crate::game::game::GamePlugin;
@@ -50,5 +51,6 @@ fn main() {
         .add_plugins(StatePlugin)
         .add_plugins(CameraPlugin)
         .add_plugins(GamePlugin)
+        .add_plugins(WorldInspectorPlugin::new())
         .run();
 }
