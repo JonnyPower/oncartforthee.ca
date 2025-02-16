@@ -4,7 +4,8 @@ use bevy::color::palettes::css::ORANGE_RED;
 use bevy::image::{ImageAddressMode, ImageLoaderSettings, ImageSampler, ImageSamplerDescriptor};
 use bevy::math::Affine2;
 use bevy::pbr::CascadeShadowConfigBuilder;
-use bevy::prelude::{AmbientLight, Assets, AssetServer, Color, Commands, default, DirectionalLight, light_consts, Mesh, Mesh3d, Meshable, MeshMaterial3d, OnEnter, Plane3d, Plugin, Quat, Res, ResMut, SceneRoot, StandardMaterial, Transform, Vec3, Component, debug, info, Vec2};
+use bevy_rapier3d::prelude::*;
+use bevy::prelude::{AmbientLight, Assets, AssetServer, Color, Commands, default, DirectionalLight, light_consts, Mesh, Mesh3d, Meshable, MeshMaterial3d, OnEnter, Plane3d, Plugin, Quat, Res, ResMut, SceneRoot, StandardMaterial, Transform, Vec3, Component, debug, info, Vec2, BuildChildren, ChildBuild};
 use crate::game::movement::{MovementPlugin, MovementSpeed};
 use crate::state::{InGameState, TitleMenuState};
 
@@ -20,7 +21,7 @@ impl Plugin for GamePlugin {
 }
 
 #[derive(Component)]
-#[require(MovementSpeed)]
+#[require(MovementSpeed, Velocity)]
 pub struct Player;
 
 fn setup_scene(
@@ -49,17 +50,43 @@ fn setup_scene(
         Mesh3d(meshes.add(Plane3d::default().mesh().size(300.0, 300.0))),
         MeshMaterial3d(materials.add(StandardMaterial {
             base_color_texture: Some(tile_image.clone()),
-            uv_transform: Affine2::from_scale(Vec2::new(100., 100.)),
+            uv_transform: Affine2::from_scale(Vec2::new(200., 200.)),
             ..default()
-        })),
-    ));
+        }))
+    )).with_children(|parent| {
+        parent.spawn((
+            Collider::cuboid(300.0, 0.1, 300.0),
+            Transform::from_xyz(0.0, 0.0, 0.0)
+        ));
+    });
     let cart = asset_server.load("models/shopping_cart.glb#Scene0");
     commands.spawn((
         SceneRoot(cart),
         Transform::from_xyz(0.0, 0.0, 0.0),
         Player,
-        MovementSpeed(10.0)
-    ));
+        MovementSpeed(40.0),
+        RigidBody::Dynamic,
+        Damping {
+            linear_damping: 5.0,
+            angular_damping: 1.0,
+        },
+        GravityScale(0.5)
+    )).with_children(|parent| {
+        parent.spawn((
+            Collider::cuboid(0.5, 0.5, 1.0),
+            Transform::from_xyz(0.0, 0.5, -0.5),
+        ));
+    });
+    let plant = asset_server.load("models/plant.glb#Scene0");
+    commands.spawn((
+        SceneRoot(plant),
+        Transform::from_xyz(2.0, 0.0, 1.0),
+    )).with_children(|parent| {
+        parent.spawn((
+            Collider::cuboid(0.5, 3.0, 0.5),
+            Transform::from_xyz(0.0, 0.0, 0.0),
+        ));
+    });
     commands.spawn((
         DirectionalLight {
             illuminance: 2_000.0,
