@@ -1,32 +1,47 @@
-use std::ops::Div;
-use bevy::app::App;
-use bevy::color::palettes::basic::WHITE;
-use bevy::math::{Vec2, Vec3};
-use bevy::prelude::{debug, in_state, info, Assets, ButtonInput, Camera, Command, Commands, Component, Dir2, Entity, FixedUpdate, FloatExt, FromWorld, Handle, IntoSystemConfigs, KeyCode, Material, Mesh, Mesh3d, MeshMaterial3d, Plugin, Query, Res, Resource, Sphere, StableInterpolate, StandardMaterial, Timer, TimerMode, Transform, Update, Vec3Swizzles, With, Without, World};
-use bevy::time::Time;
-use bevy_rapier3d::prelude::Velocity;
-use rand::{rng, Rng};
 use crate::camera::GameCamera;
 use crate::game::game::Player;
 use crate::state::InGameState;
+use bevy::app::App;
+use bevy::color::palettes::basic::WHITE;
+use bevy::math::{Vec2, Vec3};
+use bevy::prelude::{debug, in_state, info, warn, Assets, ButtonInput, Camera, Command, Commands, Component, Dir2, Entity, FixedUpdate, FloatExt, FromWorld, Handle, IntoSystemConfigs, KeyCode, Material, Mesh, Mesh3d, MeshMaterial3d, Plugin, Quat, Query, Reflect, Res, Resource, Sphere, StableInterpolate, StandardMaterial, Timer, TimerMode, Transform, Update, Vec3Swizzles, With, Without, World};
+use bevy::time::Time;
+use bevy_inspector_egui::prelude::*;
+use bevy_inspector_egui::InspectorOptions;
+use bevy_rapier3d::prelude::{ExternalImpulse, Velocity};
+use rand::{rng, Rng};
+use std::ops::Div;
 
 pub struct MovementPlugin;
 impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(FixedUpdate, (handle_movement).run_if(in_state(InGameState::Playing)));
-        app.add_systems(Update, (simulate_particles).run_if(in_state(InGameState::Playing)));
+        app.add_systems(
+            FixedUpdate,
+            (handle_movement).run_if(in_state(InGameState::Playing)),
+        );
+        app.add_systems(
+            Update,
+            (simulate_particles).run_if(in_state(InGameState::Playing)),
+        );
         app.init_resource::<ParticleAssets>();
+        app.register_type::<MovementSettings>();
     }
 }
 
-#[derive(Component)]
-pub struct MovementSpeed(pub f32);
-impl Default for MovementSpeed {
+#[derive(Component, Reflect, InspectorOptions)]
+#[reflect(InspectorOptions)]
+pub struct MovementSettings {
+    pub speed: f32,
+    pub max_speed: f32,
+}
+impl Default for MovementSettings {
     fn default() -> Self {
-        MovementSpeed(1.0)
+        MovementSettings {
+            speed: 10.0,
+            max_speed: 100.0,
+        }
     }
 }
-
 
 #[derive(Resource)]
 struct ParticleAssets {
@@ -57,60 +72,88 @@ struct Particle {
 fn handle_movement(
     mut commands: Commands,
     keys: Res<ButtonInput<KeyCode>>,
-    mut player_q: Query<(&mut Transform, &mut Velocity, &MovementSpeed), With<Player>>,
+    mut player_q: Query<(&mut Transform, &Velocity, &mut ExternalImpulse, &MovementSettings), With<Player>>,
     mut camera_q: Query<&mut Transform, (With<GameCamera>, Without<Player>)>,
     particle: Res<ParticleAssets>,
-    time: Res<Time>
+    time: Res<Time>,
 ) {
-    let mut xz_plane_movement = Vec2::ZERO;
+    let mut direction = Vec3::ZERO;
 
     if keys.pressed(KeyCode::KeyW) {
-        xz_plane_movement += Vec2::new(-1.0, 0.0);
+        direction -= Vec3::X;
     }
-
     if keys.pressed(KeyCode::KeyS) {
-        xz_plane_movement += Vec2::new(1.0, 0.0);
+        direction += Vec3::X;
     }
-
     if keys.pressed(KeyCode::KeyA) {
-        xz_plane_movement += Vec2::new(0.0, 1.0);
+        direction += Vec3::Z;
     }
-
     if keys.pressed(KeyCode::KeyD) {
-        xz_plane_movement += Vec2::new(0.0, -1.0);
+        direction -= Vec3::Z;
     }
 
     match player_q.get_single_mut() {
-        Ok((mut player_t, mut player_velocity, speed)) => {
-            if xz_plane_movement != Vec2::ZERO {
-                let change = xz_plane_movement.normalize_or_zero() * speed.0 * time.delta_secs();
-                let new_location = player_t.translation + Vec3::new(change.x, 0.0, change.y);
-                player_t.look_at(new_location, Vec3::Y);
-                player_velocity.linvel = (player_velocity.linvel + Vec3::new(change.x, 0.0, change.y)).clamp(Vec3::splat(-250.0), Vec3::splat(250.0));
-                let mut rng = rng();
-                // Spawn a bunch of particles.
-                for _ in 0..3 {
-                    let size = rng.random_range(0.01..0.03);
-                    let particle_spawn = player_t.translation + player_t.back().div(Vec3::splat(2.5)) + Vec3::new(rng.random_range(-0.25..0.25), 0., rng.random_range(-0.25..0.25));
-                    commands.queue(spawn_particle(
-                        particle.mesh.clone(),
-                        particle.material.clone(),
-                        particle_spawn.reject_from_normalized(Vec3::Y),
-                        rng.random_range(0.05..0.15),
-                        size,
-                        Vec3::new(player_t.back().x + rng.random_range(-0.5..0.5), rng.random_range(0.0..4.0), player_t.back().z + rng.random_range(-0.5..0.5)),
-                    ));
+        Ok((mut player_t, player_velocity, mut player_impulse, player_ms)) => {
+            if direction != Vec3::ZERO {
+                direction = direction.normalize();
+                let impulse_force = direction * player_ms.speed * time.delta_secs() * if keys.pressed(KeyCode::ShiftLeft) { 2.0 } else { 1.0 };
+                if player_velocity.linvel.length() < player_ms.max_speed {
+                    player_impulse.impulse += impulse_force;
+                    draw_run_particles(&mut commands, &player_t, &particle);
+                }
+                if player_velocity.linvel.length_squared() > 0.1 {
+                    let facing_direction = player_velocity.linvel.normalize();
+                    let target_rotation = Quat::from_rotation_arc(Vec3::NEG_Z, Vec3::new(facing_direction.x, 0.0, facing_direction.z));
+                    player_t.rotation = target_rotation;
                 }
             }
+            
+                
             let mut camera_t = camera_q.single_mut();
             camera_t.translation = camera_t.translation.lerp(
-                Vec3::new(player_t.translation.x + 5.0, camera_t.translation.y, player_t.translation.z),
-                time.delta_secs() * 5.0
+                Vec3::new(
+                    player_t.translation.x + 5.0,
+                    camera_t.translation.y,
+                    player_t.translation.z,
+                ),
+                time.delta_secs() * 5.0,
             );
         }
-        _ => {}
+        _ => {
+            warn!("Player not found");
+        }
     }
-    
+}
+
+fn draw_run_particles(
+    mut commands: &mut Commands,
+    player_t: &Transform,
+    particle: &Res<ParticleAssets>,
+) {
+    let mut rng = rng();
+    // Spawn a bunch of particles.
+    for _ in 0..3 {
+        let size = rng.random_range(0.01..0.03);
+        let particle_spawn = player_t.translation
+            + player_t.back().div(Vec3::splat(2.5))
+            + Vec3::new(
+            rng.random_range(-0.25..0.25),
+            0.,
+            rng.random_range(-0.25..0.25),
+        );
+        commands.queue(spawn_particle(
+            particle.mesh.clone(),
+            particle.material.clone(),
+            particle_spawn.reject_from_normalized(Vec3::Y),
+            rng.random_range(0.05..0.15),
+            size,
+            Vec3::new(
+                player_t.back().x + rng.random_range(-0.5..0.5),
+                rng.random_range(0.0..4.0),
+                player_t.back().z + rng.random_range(-0.5..0.5),
+            ),
+        ));
+    }
 }
 
 fn spawn_particle<M: Material>(

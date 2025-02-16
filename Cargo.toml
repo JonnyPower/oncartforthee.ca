@@ -11,6 +11,9 @@ bevy_rapier3d =  { version = "0.28", features = [ "simd-stable", "debug-render-3
 getrandom = { version = "0.3", features = ["wasm_js"] }
 rand = { version = "0.9" }
 
+[profile.dev.package.bevy_rapier3d]
+opt-level = 3
+
 [dependencies.web-sys]
 version = "0.3.77"
 features = [

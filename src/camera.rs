@@ -1,4 +1,4 @@
-use bevy::prelude::{App, Camera, Camera2d, Camera3d, ClearColorConfig, Commands, Component, default, Plugin, Query, Startup, Transform, Vec3, Window};
+use bevy::prelude::{App, Camera, Camera2d, Camera3d, ClearColorConfig, Commands, Component, default, Plugin, Query, Startup, Transform, Vec3, Window, Dir3};
 
 #[derive(Component)]
 pub struct UICamera;

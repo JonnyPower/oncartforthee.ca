@@ -5,8 +5,8 @@ use bevy::image::{ImageAddressMode, ImageLoaderSettings, ImageSampler, ImageSamp
 use bevy::math::Affine2;
 use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy_rapier3d::prelude::*;
-use bevy::prelude::{AmbientLight, Assets, AssetServer, Color, Commands, default, DirectionalLight, light_consts, Mesh, Mesh3d, Meshable, MeshMaterial3d, OnEnter, Plane3d, Plugin, Quat, Res, ResMut, SceneRoot, StandardMaterial, Transform, Vec3, Component, debug, info, Vec2, BuildChildren, ChildBuild};
-use crate::game::movement::{MovementPlugin, MovementSpeed};
+use bevy::prelude::{AmbientLight, Assets, AssetServer, Color, Commands, default, DirectionalLight, light_consts, Mesh, Mesh3d, Meshable, MeshMaterial3d, OnEnter, Plane3d, Plugin, Quat, Res, ResMut, SceneRoot, StandardMaterial, Transform, Vec3, Component, debug, info, Vec2, BuildChildren, ChildBuild, Name};
+use crate::game::movement::{MovementPlugin, MovementSettings};
 use crate::state::{InGameState, TitleMenuState};
 
 pub struct GamePlugin;
@@ -21,7 +21,7 @@ impl Plugin for GamePlugin {
 }
 
 #[derive(Component)]
-#[require(MovementSpeed, Velocity)]
+#[require(MovementSettings, Velocity, ExternalImpulse, GravityScale, RigidBody)]
 pub struct Player;
 
 fn setup_scene(
@@ -47,6 +47,7 @@ fn setup_scene(
         }
     );
     commands.spawn((
+        Name::new("Floor"),
         Mesh3d(meshes.add(Plane3d::default().mesh().size(300.0, 300.0))),
         MeshMaterial3d(materials.add(StandardMaterial {
             base_color_texture: Some(tile_image.clone()),
@@ -55,22 +56,24 @@ fn setup_scene(
         }))
     )).with_children(|parent| {
         parent.spawn((
-            Collider::cuboid(300.0, 0.1, 300.0),
+            Collider::cuboid(150.0, 0.1, 150.0),
             Transform::from_xyz(0.0, 0.0, 0.0)
         ));
     });
     let cart = asset_server.load("models/shopping_cart.glb#Scene0");
     commands.spawn((
+        Name::new("Player"),
         SceneRoot(cart),
         Transform::from_xyz(0.0, 0.0, 0.0),
         Player,
-        MovementSpeed(40.0),
-        RigidBody::Dynamic,
+        MovementSettings {
+            speed: 125.0,
+            max_speed: 350.0
+        },
         Damping {
             linear_damping: 5.0,
             angular_damping: 1.0,
-        },
-        GravityScale(0.5)
+        }
     )).with_children(|parent| {
         parent.spawn((
             Collider::cuboid(0.5, 0.5, 1.0),
@@ -79,6 +82,7 @@ fn setup_scene(
     });
     let plant = asset_server.load("models/plant.glb#Scene0");
     commands.spawn((
+        Name::new("Plant"),
         SceneRoot(plant),
         Transform::from_xyz(2.0, 0.0, 1.0),
     )).with_children(|parent| {
