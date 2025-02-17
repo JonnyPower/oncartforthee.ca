@@ -6,6 +6,8 @@ use bevy::app::App;
 use bevy::input::ButtonInput;
 use bevy::log::info;
 use bevy::math::Vec3;
+use bevy::prelude::Entity;
+use bevy::prelude::EventReader;
 use bevy::prelude::{
     in_state, Commands, IntoSystemConfigs, KeyCode, Plugin, Query, Res, Transform, Update, With,
     Without,
