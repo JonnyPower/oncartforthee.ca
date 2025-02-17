@@ -1,5 +1,6 @@
 use crate::camera::GameCamera;
 use crate::game::game::{AnimationToPlay, Player};
+use crate::game::particles::{spawn_particle, ParticleAssets};
 use crate::state::InGameState;
 use bevy::animation::RepeatAnimation;
 use bevy::app::App;
@@ -26,11 +27,6 @@ impl Plugin for MovementPlugin {
             FixedUpdate,
             (handle_movement).run_if(in_state(InGameState::Playing)),
         );
-        app.add_systems(
-            Update,
-            (simulate_particles).run_if(in_state(InGameState::Playing)),
-        );
-        app.init_resource::<ParticleAssets>();
         app.register_type::<MovementSettings>();
     }
 }
@@ -48,32 +44,6 @@ impl Default for MovementSettings {
             max_speed: 100.0,
         }
     }
-}
-
-#[derive(Resource)]
-struct ParticleAssets {
-    mesh: Handle<Mesh>,
-    material: Handle<StandardMaterial>,
-}
-impl FromWorld for ParticleAssets {
-    fn from_world(world: &mut World) -> Self {
-        Self {
-            mesh: world.resource_mut::<Assets<Mesh>>().add(Sphere::new(10.0)),
-            material: world
-                .resource_mut::<Assets<StandardMaterial>>()
-                .add(StandardMaterial {
-                    base_color: WHITE.into(),
-                    ..Default::default()
-                }),
-        }
-    }
-}
-
-#[derive(Component)]
-struct Particle {
-    lifeteime_timer: Timer,
-    size: f32,
-    velocity: Vec3,
 }
 
 fn handle_movement(
@@ -159,7 +129,7 @@ fn handle_movement(
                     }
                 } else {
                     if let Some(animation) = opt_animation {
-                        animation.pause().seek_to(0.0);
+                        animation.pause().set_seek_time(0.0);
                     }
                 }
             }
@@ -208,50 +178,5 @@ fn draw_run_particles(
                 player_t.back().z + rng.random_range(-0.5..0.5),
             ),
         ));
-    }
-}
-
-fn spawn_particle<M: Material>(
-    mesh: Handle<Mesh>,
-    material: Handle<M>,
-    translation: Vec3,
-    lifetime: f32,
-    size: f32,
-    velocity: Vec3,
-) -> impl Command {
-    move |world: &mut World| {
-        world.spawn((
-            Particle {
-                lifeteime_timer: Timer::from_seconds(lifetime, TimerMode::Once),
-                size,
-                velocity,
-            },
-            Mesh3d(mesh),
-            MeshMaterial3d(material),
-            Transform {
-                translation,
-                scale: Vec3::splat(size),
-                ..Default::default()
-            },
-        ));
-    }
-}
-
-fn simulate_particles(
-    mut commands: Commands,
-    mut query: Query<(Entity, &mut Transform, &mut Particle)>,
-    time: Res<Time>,
-) {
-    for (entity, mut transform, mut particle) in &mut query {
-        if particle.lifeteime_timer.tick(time.delta()).just_finished() {
-            commands.entity(entity).despawn();
-        } else {
-            transform.translation += particle.velocity * time.delta_secs();
-            transform.scale =
-                Vec3::splat(particle.size.lerp(0.0, particle.lifeteime_timer.fraction()));
-            particle
-                .velocity
-                .smooth_nudge(&Vec3::ZERO, 4.0, time.delta_secs());
-        }
     }
 }

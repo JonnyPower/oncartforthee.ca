@@ -1,4 +1,7 @@
+use crate::game::item::ItemPickup;
 use crate::game::movement::{MovementPlugin, MovementSettings};
+use crate::game::particles::ParticlesPlugin;
+use crate::game::stomp::PlayerStompPlugin;
 use crate::state::{InGameState, TitleMenuState};
 use bevy::app::App;
 use bevy::color::palettes::css::ORANGE_RED;
@@ -15,18 +18,35 @@ use bevy::prelude::{
 };
 use bevy::scene::SceneInstanceReady;
 use bevy_rapier3d::prelude::*;
+use bevy_spatial::{AutomaticUpdate, SpatialStructure, TransformMode};
 use std::f32::consts::PI;
+use std::time::Duration;
 
 pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(InGameState::Playing), setup_scene);
         app.add_plugins(MovementPlugin);
+        app.add_plugins(ParticlesPlugin);
+        app.add_plugins(PlayerStompPlugin);
+        app.add_plugins(
+            AutomaticUpdate::<TrackedByKDTree>::new().with_spatial_ds(SpatialStructure::KDTree3),
+        );
     }
 }
 
+#[derive(Component, Default)]
+pub struct TrackedByKDTree;
+
 #[derive(Component)]
-#[require(MovementSettings, Velocity, ExternalImpulse, GravityScale, RigidBody)]
+#[require(
+    MovementSettings,
+    Velocity,
+    ExternalImpulse,
+    GravityScale,
+    RigidBody,
+    TrackedByKDTree
+)]
 pub struct Player;
 
 #[derive(Component)]
@@ -114,6 +134,17 @@ fn setup_scene(
                 Collider::cuboid(0.5, 3.0, 0.5),
                 Transform::from_xyz(0.0, 0.0, 0.0),
             ));
+        });
+    let burger = asset_server.load("models/burger.glb#Scene0");
+    commands
+        .spawn((
+            Name::new("Burger"),
+            SceneRoot(burger),
+            Transform::from_xyz(-2.0, 0.0, -1.0),
+            ItemPickup,
+        ))
+        .with_children(|parent| {
+            parent.spawn((Collider::cuboid(0.1, 0.1, 0.1),));
         });
     commands.spawn((
         DirectionalLight {
