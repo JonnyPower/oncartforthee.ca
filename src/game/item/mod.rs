@@ -3,18 +3,21 @@ use bevy::math::Vec3;
 use bevy::prelude::Component;
 use bevy::utils::default;
 use bevy_rapier3d::prelude::*;
+use rand::distr::StandardUniform;
+use rand::prelude::Distribution;
+use rand::Rng;
 
 mod item_reader;
 
-pub struct ItemDetails {
-    pub name: String,
-    pub is_canadian: bool,
-    pub model: String,
-    pub texture: String,
-}
-
 #[derive(Component)]
-#[require(TrackedByKDTree, Velocity, ExternalImpulse, GravityScale, RigidBody)]
+#[require(
+    TrackedByKDTree,
+    Velocity,
+    ExternalImpulse,
+    GravityScale,
+    RigidBody,
+    ItemPickupCountry(item_origin_random)
+)]
 pub struct ItemPickup;
 
 #[derive(Component)]
@@ -24,10 +27,49 @@ pub struct ItemPickup;
 )]
 pub struct ItemPickupCollider;
 
+#[derive(Component)]
+pub enum ItemPickupCountry {
+    USA,
+    CA,
+    Mexico,
+    EU,
+    UK,
+    China,
+}
+impl ItemPickupCountry {
+    pub fn asset_path(&self) -> &'static str {
+        match self {
+            ItemPickupCountry::USA => "images/fl_us.png",
+            ItemPickupCountry::CA => "images/fl_ca.png",
+            ItemPickupCountry::Mexico => "images/fl_mx.png",
+            ItemPickupCountry::EU => "images/fl_eu.png",
+            ItemPickupCountry::UK => "images/fl_uk.png",
+            ItemPickupCountry::China => "images/fl_cn.png",
+        }
+    }
+}
+impl Distribution<ItemPickupCountry> for StandardUniform {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> ItemPickupCountry {
+        match rng.random_range(0..=5) {
+            0 => ItemPickupCountry::USA,
+            1 => ItemPickupCountry::CA,
+            2 => ItemPickupCountry::Mexico,
+            3 => ItemPickupCountry::EU,
+            4 => ItemPickupCountry::UK,
+            5 => ItemPickupCountry::China,
+            _ => unreachable!(),
+        }
+    }
+}
+
 fn item_pickup_mass() -> ColliderMassProperties {
     ColliderMassProperties::Mass(0.005)
 }
 
 fn item_pickup_collision_groups() -> CollisionGroups {
     CollisionGroups::new(Group::GROUP_2, Group::GROUP_1 | Group::GROUP_2)
+}
+
+fn item_origin_random() -> ItemPickupCountry {
+    rand::random()
 }

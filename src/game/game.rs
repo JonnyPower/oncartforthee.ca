@@ -1,6 +1,7 @@
+use crate::camera::GameCamera;
 use crate::game::animation::{setup_animation_graph, AnimationPlugin, AnimationToPlay};
 use crate::game::hud::HudPlugin;
-use crate::game::item::{ItemPickup, ItemPickupCollider};
+use crate::game::item::{ItemPickup, ItemPickupCollider, ItemPickupCountry};
 use crate::game::movement::{MovementPlugin, MovementSettings};
 use crate::game::particles::ParticlesPlugin;
 use crate::game::stomp::PlayerStompPlugin;
@@ -12,11 +13,12 @@ use bevy::image::{ImageAddressMode, ImageLoaderSettings, ImageSampler, ImageSamp
 use bevy::math::Affine2;
 use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy::prelude::{
-    debug, default, info, light_consts, AmbientLight, AnimationGraph, AnimationGraphHandle,
-    AnimationNodeIndex, AnimationPlayer, AssetServer, Assets, BuildChildren, ChildBuild, Children,
-    Color, Commands, Component, DirectionalLight, Handle, HierarchyQueryExt, Mesh, Mesh3d,
-    MeshMaterial3d, Meshable, Name, OnEnter, Plane3d, Plugin, Quat, Query, Res, ResMut, SceneRoot,
-    StandardMaterial, Transform, Trigger, Vec2, Vec3, With,
+    debug, default, in_state, info, light_consts, Added, AmbientLight, AnimationGraph,
+    AnimationGraphHandle, AnimationNodeIndex, AnimationPlayer, AssetServer, Assets, BuildChildren,
+    Camera, ChildBuild, Children, Color, Commands, Component, Dir3, DirectionalLight, Entity,
+    GlobalTransform, Handle, HierarchyQueryExt, IntoSystemConfigs, Mesh, Mesh3d, MeshMaterial3d,
+    Meshable, Name, OnEnter, PbrBundle, Plane3d, Plugin, Quat, Query, Res, ResMut, SceneRoot,
+    Sprite, SpriteBundle, StandardMaterial, Transform, Trigger, Update, Vec2, Vec3, With, Without,
 };
 use bevy::render::mesh::skinning::SkinnedMesh;
 use bevy::scene::SceneInstanceReady;
@@ -33,6 +35,10 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(InGameState::Playing), setup_scene);
+        app.add_systems(
+            Update,
+            (add_item_origin_flag, keep_flag_facing_camera).run_if(in_state(InGameState::Playing)),
+        );
         app.add_plugins(MovementPlugin);
         app.add_plugins(ParticlesPlugin);
         app.add_plugins(PlayerStompPlugin);
@@ -83,6 +89,12 @@ pub struct American;
     ActiveEvents(active_collision_events)
 )]
 pub struct CartCollider;
+
+#[derive(Component)]
+pub struct ItemForFlag(pub Entity);
+
+#[derive(Component)]
+pub struct FlagForItem(pub Entity);
 
 fn cart_collider_groups() -> CollisionGroups {
     CollisionGroups::new(Group::GROUP_1, Group::GROUP_2)
@@ -232,6 +244,60 @@ fn setup_scene(
             ..default()
         },
     ));
+}
+
+fn add_item_origin_flag(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    asset_server: Res<AssetServer>,
+    mut country_q: Query<(Entity, &Transform, &ItemPickupCountry), Added<ItemPickupCountry>>,
+    mut camera_q: Query<&Transform, With<GameCamera>>,
+) {
+    if let Ok(camera_t) = camera_q.get_single() {
+        for (entity, item_t, country) in country_q.iter_mut() {
+            let flag_e = commands
+                .spawn((
+                    Mesh3d(
+                        meshes.add(
+                            Plane3d {
+                                normal: Dir3::Z,
+                                ..default()
+                            }
+                            .mesh()
+                            .size(0.2, 0.15),
+                        ),
+                    ),
+                    MeshMaterial3d(materials.add(StandardMaterial {
+                        base_color_texture: Some(asset_server.load(country.asset_path())),
+                        unlit: true,
+                        cull_mode: None,
+                        ..default()
+                    })),
+                    Transform::from(*item_t).looking_at(camera_t.translation, Vec3::Y),
+                    ItemForFlag(entity),
+                ))
+                .id();
+            commands.entity(entity).insert(FlagForItem(flag_e));
+        }
+    }
+}
+
+fn keep_flag_facing_camera(
+    mut commands: Commands,
+    mut country_q: Query<(&mut Transform, &ItemForFlag)>,
+    mut transform_q: Query<&mut Transform, (Without<ItemForFlag>, Without<GameCamera>)>,
+    camera_q: Query<&GlobalTransform, (With<GameCamera>, Without<ItemForFlag>)>,
+) {
+    if let Ok(camera_gt) = camera_q.get_single() {
+        for (mut flag_t, target) in country_q.iter_mut() {
+            if let Ok(target_t) = transform_q.get(target.0) {
+                let camera_world_pos = camera_gt.translation();
+                flag_t.translation = target_t.translation;
+                flag_t.look_at(camera_world_pos, Vec3::Y);
+            }
+        }
+    }
 }
 
 fn setup_ragdoll(

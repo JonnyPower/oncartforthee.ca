@@ -1,5 +1,5 @@
-use crate::game::game::{CartCollider, Player, TrackedByKDTree, CART_HEIGHT};
-use crate::game::item::ItemPickup;
+use crate::game::game::{CartCollider, FlagForItem, Player, TrackedByKDTree, CART_HEIGHT};
+use crate::game::item::{ItemPickup, ItemPickupCountry};
 use crate::game::particles::{spawn_particle, ParticleAssets};
 use crate::state::InGameState;
 use bevy::app::App;
@@ -69,7 +69,7 @@ fn detect_item_landing_on_cart(
     mut commands: Commands,
     mut collision_events: EventReader<CollisionEvent>,
     collider_q: Query<(Entity, Option<&Parent>), With<Collider>>,
-    item_q: Query<(&GlobalTransform), With<ItemPickup>>,
+    item_q: Query<(&GlobalTransform, &ItemPickupCountry, &FlagForItem), With<ItemPickup>>,
     cart_q: Query<(&GlobalTransform), With<CartCollider>>,
     mut score_res: ResMut<ScoreResource>,
 ) {
@@ -77,14 +77,14 @@ fn detect_item_landing_on_cart(
         if let Started(e1, e2, _flags) = event {
             let mut item_entity = None;
             let mut cart_entity = None;
-            let mut item_t = None;
+            let mut item_result = None;
             let mut cart_t = None;
             for &entity in [e1, e2].iter() {
                 // If parent of entity that collided is ItemPickup...
                 if let Ok((_, Some(parent))) = collider_q.get(*entity) {
                     if let Ok(item_transform) = item_q.get(parent.get()) {
                         item_entity = Some(parent.get());
-                        item_t = Some(item_transform);
+                        item_result = Some(item_transform);
                     }
                 }
                 // If current collided entity is CartCollider
@@ -93,12 +93,36 @@ fn detect_item_landing_on_cart(
                     cart_t = Some(cart_transform);
                 }
             }
-            if let (Some(item), Some(item_t), Some(cart), Some(cart_t)) =
-                (item_entity, item_t, cart_entity, cart_t)
+            if let (
+                Some(item),
+                Some((item_gt, item_country, item_flag)),
+                Some(cart),
+                Some(cart_t),
+            ) = (item_entity, item_result, cart_entity, cart_t)
             {
-                if item_t.translation().y >= cart_t.translation().y + CART_HEIGHT {
+                if item_gt.translation().y >= cart_t.translation().y + CART_HEIGHT {
+                    commands.entity(item_flag.0).despawn_recursive();
                     commands.entity(item).despawn_recursive();
-                    score_res.score += 1;
+                    match item_country {
+                        ItemPickupCountry::USA => {
+                            score_res.score -= 10;
+                        }
+                        ItemPickupCountry::CA => {
+                            score_res.score += 10;
+                        }
+                        ItemPickupCountry::Mexico => {
+                            score_res.score += 5;
+                        }
+                        ItemPickupCountry::EU => {
+                            score_res.score += 2;
+                        }
+                        ItemPickupCountry::UK => {
+                            score_res.score += 3;
+                        }
+                        ItemPickupCountry::China => {
+                            score_res.score -= 1;
+                        }
+                    }
                 }
             }
         }
