@@ -100,7 +100,7 @@ fn detect_item_landing_on_cart(
                 Some(cart_t),
             ) = (item_entity, item_result, cart_entity, cart_t)
             {
-                if item_gt.translation().y >= cart_t.translation().y + CART_HEIGHT {
+                if item_gt.translation().y >= cart_t.translation().y + CART_HEIGHT - 0.1 {
                     commands.entity(item_flag.0).despawn_recursive();
                     commands.entity(item).despawn_recursive();
                     match item_country {
