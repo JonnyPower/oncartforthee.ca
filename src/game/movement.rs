@@ -1,6 +1,7 @@
 use crate::camera::GameCamera;
 use crate::game::game::{AnimationToPlay, Player};
 use crate::state::InGameState;
+use bevy::animation::RepeatAnimation;
 use bevy::app::App;
 use bevy::color::palettes::basic::WHITE;
 use bevy::math::{Vec2, Vec3};
@@ -145,14 +146,20 @@ fn handle_movement(
             }
 
             if let Ok(mut animation_p) = animationp_q.get_single_mut() {
+                let opt_animation = animation_p.animation_mut(player_animation.index);
                 if player_velocity.linvel.length_squared() > 1.0 {
-                    if !animation_p.is_playing_animation(player_animation.index) {
-                        animation_p.play(player_animation.index).repeat();
+                    match opt_animation {
+                        Some(animation) if animation.is_paused() => {
+                            animation.resume();
+                        }
+                        None => {
+                            animation_p.play(player_animation.index).repeat();
+                        }
+                        _ => {}
                     }
                 } else {
-                    if animation_p.is_playing_animation(player_animation.index) {
-                        animation_p.rewind_all();
-                        animation_p.stop(player_animation.index);
+                    if let Some(animation) = opt_animation {
+                        animation.pause().seek_to(0.0);
                     }
                 }
             }
