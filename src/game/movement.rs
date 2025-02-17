@@ -1,5 +1,6 @@
 use crate::camera::GameCamera;
-use crate::game::game::{AnimationToPlay, Player};
+use crate::game::animation::{AnimationPlayerEntityForRootEntity, AnimationToPlay};
+use crate::game::game::Player;
 use crate::game::particles::{spawn_particle, ParticleAssets};
 use crate::state::InGameState;
 use bevy::animation::RepeatAnimation;
@@ -7,11 +8,11 @@ use bevy::app::App;
 use bevy::color::palettes::basic::WHITE;
 use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{
-    debug, in_state, info, warn, AnimationPlayer, Assets, ButtonInput, Camera, Command, Commands,
-    Component, Dir2, Entity, FixedUpdate, FloatExt, FromWorld, Handle, IntoSystemConfigs, KeyCode,
-    Material, Mesh, Mesh3d, MeshMaterial3d, Plugin, Quat, Query, Reflect, Res, Resource, Sphere,
-    StableInterpolate, StandardMaterial, Timer, TimerMode, Transform, Update, Vec3Swizzles, With,
-    Without, World,
+    debug, in_state, info, warn, AnimationPlayer, Assets, ButtonInput, Camera, Children, Command,
+    Commands, Component, Dir2, Entity, FixedUpdate, FloatExt, FromWorld, Handle, IntoSystemConfigs,
+    KeyCode, Material, Mesh, Mesh3d, MeshMaterial3d, Plugin, Quat, Query, Reflect, Res, Resource,
+    Sphere, StableInterpolate, StandardMaterial, Timer, TimerMode, Transform, Update, Vec3Swizzles,
+    With, Without, World,
 };
 use bevy::time::Time;
 use bevy_inspector_egui::prelude::*;
@@ -56,11 +57,13 @@ fn handle_movement(
             &Velocity,
             &mut ExternalImpulse,
             &MovementSettings,
-            &AnimationToPlay,
+            &Children,
+            &AnimationPlayerEntityForRootEntity,
         ),
         With<Player>,
     >,
-    mut animationp_q: Query<(&mut AnimationPlayer), Without<Player>>,
+    player_animation_to_play_q: Query<(&AnimationToPlay), Without<Player>>,
+    mut animationp_q: Query<(&mut AnimationPlayer)>,
     mut camera_q: Query<
         &mut Transform,
         (With<GameCamera>, Without<Player>, Without<AnimationPlayer>),
@@ -90,7 +93,8 @@ fn handle_movement(
             player_velocity,
             mut player_impulse,
             player_ms,
-            player_animation,
+            player_children,
+            animation_player_link,
         )) => {
             if direction != Vec3::ZERO {
                 direction = direction.normalize();
@@ -115,23 +119,33 @@ fn handle_movement(
                 }
             }
 
-            if let Ok(mut animation_p) = animationp_q.get_single_mut() {
-                let opt_animation = animation_p.animation_mut(player_animation.index);
-                if player_velocity.linvel.length_squared() > 1.0 {
-                    match opt_animation {
-                        Some(animation) if animation.is_paused() => {
-                            animation.resume();
+            // Find animation to play in player entity, then find animation player in entity tree to play animation
+            if let Some(player_animation) = player_children
+                .iter()
+                .find_map(|&child| player_animation_to_play_q.get(child).ok())
+            {
+                if let Ok(mut animation_p) = animationp_q.get_mut(animation_player_link.0) {
+                    let opt_animation = animation_p.animation_mut(player_animation.index);
+                    if player_velocity.linvel.length_squared() > 1.0 {
+                        match opt_animation {
+                            Some(animation) if animation.is_paused() => {
+                                animation.resume();
+                            }
+                            None => {
+                                animation_p.play(player_animation.index).repeat();
+                            }
+                            _ => {}
                         }
-                        None => {
-                            animation_p.play(player_animation.index).repeat();
+                    } else {
+                        if let Some(animation) = opt_animation {
+                            animation.pause().set_seek_time(0.0);
                         }
-                        _ => {}
                     }
                 } else {
-                    if let Some(animation) = opt_animation {
-                        animation.pause().set_seek_time(0.0);
-                    }
+                    warn!("can't find animation player from link");
                 }
+            } else {
+                warn!("can't find animation to play under player entity");
             }
 
             let mut camera_t = camera_q.single_mut();
@@ -144,9 +158,7 @@ fn handle_movement(
                 1.0 - (-time.delta_secs() * 5.0).exp(),
             );
         }
-        _ => {
-            warn!("Player not found");
-        }
+        _ => {}
     }
 }
 
