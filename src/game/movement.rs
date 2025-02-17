@@ -1,10 +1,16 @@
 use crate::camera::GameCamera;
-use crate::game::game::Player;
+use crate::game::game::{AnimationToPlay, Player};
 use crate::state::InGameState;
 use bevy::app::App;
 use bevy::color::palettes::basic::WHITE;
 use bevy::math::{Vec2, Vec3};
-use bevy::prelude::{debug, in_state, info, warn, Assets, ButtonInput, Camera, Command, Commands, Component, Dir2, Entity, FixedUpdate, FloatExt, FromWorld, Handle, IntoSystemConfigs, KeyCode, Material, Mesh, Mesh3d, MeshMaterial3d, Plugin, Quat, Query, Reflect, Res, Resource, Sphere, StableInterpolate, StandardMaterial, Timer, TimerMode, Transform, Update, Vec3Swizzles, With, Without, World};
+use bevy::prelude::{
+    debug, in_state, info, warn, AnimationPlayer, Assets, ButtonInput, Camera, Command, Commands,
+    Component, Dir2, Entity, FixedUpdate, FloatExt, FromWorld, Handle, IntoSystemConfigs, KeyCode,
+    Material, Mesh, Mesh3d, MeshMaterial3d, Plugin, Quat, Query, Reflect, Res, Resource, Sphere,
+    StableInterpolate, StandardMaterial, Timer, TimerMode, Transform, Update, Vec3Swizzles, With,
+    Without, World,
+};
 use bevy::time::Time;
 use bevy_inspector_egui::prelude::*;
 use bevy_inspector_egui::InspectorOptions;
@@ -72,8 +78,22 @@ struct Particle {
 fn handle_movement(
     mut commands: Commands,
     keys: Res<ButtonInput<KeyCode>>,
-    mut player_q: Query<(&mut Transform, &Velocity, &mut ExternalImpulse, &MovementSettings), With<Player>>,
-    mut camera_q: Query<&mut Transform, (With<GameCamera>, Without<Player>)>,
+    mut player_q: Query<
+        (
+            Entity,
+            &mut Transform,
+            &Velocity,
+            &mut ExternalImpulse,
+            &MovementSettings,
+            &AnimationToPlay,
+        ),
+        With<Player>,
+    >,
+    mut animationp_q: Query<(&mut AnimationPlayer), Without<Player>>,
+    mut camera_q: Query<
+        &mut Transform,
+        (With<GameCamera>, Without<Player>, Without<AnimationPlayer>),
+    >,
     particle: Res<ParticleAssets>,
     time: Res<Time>,
 ) {
@@ -93,21 +113,50 @@ fn handle_movement(
     }
 
     match player_q.get_single_mut() {
-        Ok((mut player_t, player_velocity, mut player_impulse, player_ms)) => {
+        Ok((
+            player_e,
+            mut player_t,
+            player_velocity,
+            mut player_impulse,
+            player_ms,
+            player_animation,
+        )) => {
             if direction != Vec3::ZERO {
                 direction = direction.normalize();
-                let impulse_force = direction * player_ms.speed * if keys.pressed(KeyCode::ShiftLeft) { 2.0 } else { 1.0 };
+                let impulse_force = direction
+                    * player_ms.speed
+                    * if keys.pressed(KeyCode::ShiftLeft) {
+                        2.0
+                    } else {
+                        1.0
+                    };
                 if player_velocity.linvel.length() < player_ms.max_speed {
                     player_impulse.impulse += impulse_force;
                     draw_run_particles(&mut commands, &player_t, &particle);
                 }
                 if player_velocity.linvel.length_squared() > 0.1 {
                     let facing_direction = player_velocity.linvel.normalize();
-                    let target_rotation = Quat::from_rotation_arc(Vec3::NEG_Z, Vec3::new(facing_direction.x, 0.0, facing_direction.z));
+                    let target_rotation = Quat::from_rotation_arc(
+                        Vec3::NEG_Z,
+                        Vec3::new(facing_direction.x, 0.0, facing_direction.z),
+                    );
                     player_t.rotation = target_rotation;
                 }
             }
-                
+
+            if let Ok(mut animation_p) = animationp_q.get_single_mut() {
+                if player_velocity.linvel.length_squared() > 1.0 {
+                    if !animation_p.is_playing_animation(player_animation.index) {
+                        animation_p.play(player_animation.index).repeat();
+                    }
+                } else {
+                    if animation_p.is_playing_animation(player_animation.index) {
+                        animation_p.rewind_all();
+                        animation_p.stop(player_animation.index);
+                    }
+                }
+            }
+
             let mut camera_t = camera_q.single_mut();
             camera_t.translation = camera_t.translation.lerp(
                 Vec3::new(
@@ -136,10 +185,10 @@ fn draw_run_particles(
         let particle_spawn = player_t.translation
             + player_t.back().div(Vec3::splat(2.5))
             + Vec3::new(
-            rng.random_range(-0.25..0.25),
-            0.,
-            rng.random_range(-0.25..0.25),
-        );
+                rng.random_range(-0.25..0.25),
+                0.,
+                rng.random_range(-0.25..0.25),
+            );
         commands.queue(spawn_particle(
             particle.mesh.clone(),
             particle.material.clone(),
