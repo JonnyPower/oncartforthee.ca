@@ -2903,7 +2903,6 @@ dependencies = [
  "num-traits",
  "ordered-float",
  "paste",
- "rayon",
  "typenum",
 ]
 

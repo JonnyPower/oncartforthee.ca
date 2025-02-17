@@ -10,6 +10,7 @@ use bevy::prelude::{
     in_state, Commands, IntoSystemConfigs, KeyCode, Plugin, Query, Res, Transform, Update, With,
     Without,
 };
+use bevy_rapier3d::pipeline::CollisionEvent;
 use bevy_rapier3d::prelude::ExternalImpulse;
 use bevy_spatial::kdtree::KDTree3;
 use bevy_spatial::SpatialAccess;
@@ -29,7 +30,16 @@ impl Plugin for PlayerStompPlugin {
             Update,
             (handle_stomp).run_if(in_state(InGameState::Playing)),
         );
+        app.add_event::<CollisionEvent>();
+        app.add_systems(Update, detect_item_landing_on_player);
     }
+}
+
+fn detect_item_landing_on_player(
+    mut collision_events: EventReader<CollisionEvent>,
+    player_q: Query<Entity, With<Player>>,
+    transform_q: Query<&Transform>,
+) {
 }
 
 fn handle_stomp(

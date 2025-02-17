@@ -10,7 +10,7 @@ bevy-inspector-egui = "0.29"
 bevy_rapier3d =  { version = "0.28", features = [ "simd-stable", "debug-render-3d" ] }
 getrandom = { version = "0.3", features = ["wasm_js"] }
 rand = { version = "0.9" }
-bevy_spatial = "0.10.0"
+bevy_spatial = { version = "0.10.0", default-features = false, features = ["kdtree"] }
 
 [profile.dev.package.bevy_rapier3d]
 opt-level = 3
