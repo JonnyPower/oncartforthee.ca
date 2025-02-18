@@ -263,26 +263,26 @@ fn detect_item_landing_floor(
     mut commands: Commands,
     mut collision_events: EventReader<CollisionEvent>,
     parents_q: Query<&Parent>,
-    items_q: Query<(Entity, &Parent), With<ItemPickup>>,
-    floor_q: Query<&Parent, With<FloorTag>>,
+    items_q: Query<(Entity), With<ItemPickup>>,
+    floor_q: Query<(Entity), With<FloorTag>>,
 ) {
     for event in collision_events.read() {
         if let CollisionEvent::Started(entity1, entity2, _) = event {
             let mut item_entity = None;
             let mut floor_entity = None;
 
-            for entity in [entity1, entity2] {
+            for &entity in [entity1, entity2].iter() {
                 if let Ok(parent) = parents_q.get(*entity) {
-                    let parent_entity = parent.get();
-                    if items_q.get(parent_entity).is_ok() {
-                        item_entity = Some(parent_entity);
+                    if let Ok(item_e) = items_q.get(**parent) {
+                        item_entity = Some(item_e);
                     }
-                    if floor_q.get(parent_entity).is_ok() {
-                        floor_entity = Some(parent_entity);
+                    if let Ok(floor_e) = floor_q.get(**parent) {
+                        floor_entity = Some(floor_e);
                     }
                 }
             }
 
+            // If an item collided with a floor, remove `ItemIsStomped`
             if let (Some(item), Some(_)) = (item_entity, floor_entity) {
                 commands.entity(item).remove::<ItemIsStomped>();
             }
