@@ -16,9 +16,10 @@ use bevy::prelude::{
     debug, default, in_state, info, light_consts, Added, AmbientLight, AnimationGraph,
     AnimationGraphHandle, AnimationNodeIndex, AnimationPlayer, AssetServer, Assets, BuildChildren,
     Camera, ChildBuild, Children, Color, Commands, Component, Dir3, DirectionalLight, Entity,
-    GlobalTransform, Handle, HierarchyQueryExt, IntoSystemConfigs, Mesh, Mesh3d, MeshMaterial3d,
-    Meshable, Name, OnEnter, PbrBundle, Plane3d, Plugin, Quat, Query, Res, ResMut, SceneRoot,
-    Sprite, SpriteBundle, StandardMaterial, Transform, Trigger, Update, Vec2, Vec3, With, Without,
+    FixedUpdate, GlobalTransform, Handle, HierarchyQueryExt, IntoSystemConfigs, Mesh, Mesh3d,
+    MeshMaterial3d, Meshable, Name, OnEnter, PbrBundle, Plane3d, Plugin, Quat, Query, Res, ResMut,
+    SceneRoot, Sprite, SpriteBundle, StandardMaterial, Transform, Trigger, Update, Vec2, Vec3,
+    With, Without,
 };
 use bevy::render::mesh::skinning::SkinnedMesh;
 use bevy::scene::SceneInstanceReady;
@@ -37,7 +38,11 @@ impl Plugin for GamePlugin {
         app.add_systems(OnEnter(InGameState::Playing), setup_scene);
         app.add_systems(
             Update,
-            (add_item_origin_flag, keep_flag_facing_camera).run_if(in_state(InGameState::Playing)),
+            (add_item_origin_flag).run_if(in_state(InGameState::Playing)),
+        );
+        app.add_systems(
+            FixedUpdate,
+            (keep_flag_facing_camera).run_if(in_state(InGameState::Playing)),
         );
         app.add_plugins(MovementPlugin);
         app.add_plugins(ParticlesPlugin);

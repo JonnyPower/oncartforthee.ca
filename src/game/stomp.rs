@@ -33,8 +33,8 @@ impl Plugin for PlayerStompPlugin {
         );
         app.add_event::<CollisionEvent>();
         app.insert_resource(StompResource {
-            stomp_distance: 3.0,
-            stomp_away_force: 0.0,
+            stomp_distance: 5.0,
+            stomp_away_force: -0.01,
             stomp_up_force: 0.08,
             stomp_particles: 80,
             stomp_distance_falloff: 0.5,
