@@ -1,7 +1,7 @@
 use crate::camera::GameCamera;
 use crate::game::animation::{setup_animation_graph, AnimationPlugin, AnimationToPlay};
 use crate::game::hud::HudPlugin;
-use crate::game::item::{ItemPickup, ItemPickupCollider, ItemPickupCountry};
+use crate::game::item::{ItemIsStomped, ItemPickup, ItemPickupCollider, ItemPickupCountry};
 use crate::game::movement::{MovementPlugin, MovementSettings};
 use crate::game::particles::ParticlesPlugin;
 use crate::game::stomp::PlayerStompPlugin;
@@ -16,13 +16,14 @@ use bevy::prelude::{
     debug, default, in_state, info, light_consts, Added, AmbientLight, AnimationGraph,
     AnimationGraphHandle, AnimationNodeIndex, AnimationPlayer, AssetServer, Assets, BuildChildren,
     Camera, ChildBuild, Children, Color, Commands, Component, Dir3, DirectionalLight, Entity,
-    FixedUpdate, GlobalTransform, Handle, HierarchyQueryExt, IntoSystemConfigs, Mesh, Mesh3d,
-    MeshMaterial3d, Meshable, Name, OnEnter, PbrBundle, Plane3d, Plugin, Quat, Query, Res, ResMut,
-    SceneRoot, Sprite, SpriteBundle, StandardMaterial, Transform, Trigger, Update, Vec2, Vec3,
-    With, Without,
+    EventReader, FixedUpdate, GlobalTransform, Handle, HierarchyQueryExt, IntoSystemConfigs, Mesh,
+    Mesh3d, MeshMaterial3d, Meshable, Name, OnEnter, Parent, PbrBundle, Plane3d, Plugin, Quat,
+    Query, Res, ResMut, SceneRoot, Sprite, SpriteBundle, StandardMaterial, Transform, Trigger,
+    Update, Vec2, Vec3, With, Without,
 };
 use bevy::render::mesh::skinning::SkinnedMesh;
 use bevy::scene::SceneInstanceReady;
+use bevy_rapier3d::pipeline::CollisionEvent;
 use bevy_rapier3d::prelude::{
     ActiveEvents, Collider, CollisionGroups, Damping, ExternalImpulse, GravityScale, Group,
     RigidBody, Velocity,
@@ -38,7 +39,8 @@ impl Plugin for GamePlugin {
         app.add_systems(OnEnter(InGameState::Playing), setup_scene);
         app.add_systems(
             Update,
-            (add_item_origin_flag).run_if(in_state(InGameState::Playing)),
+            (add_item_origin_flag, detect_item_landing_floor)
+                .run_if(in_state(InGameState::Playing)),
         );
         app.add_systems(
             FixedUpdate,
@@ -101,8 +103,11 @@ pub struct ItemForFlag(pub Entity);
 #[derive(Component)]
 pub struct FlagForItem(pub Entity);
 
+#[derive(Component)]
+pub struct FloorTag;
+
 fn cart_collider_groups() -> CollisionGroups {
-    CollisionGroups::new(Group::GROUP_1, Group::GROUP_2)
+    CollisionGroups::new(Group::GROUP_1, Group::GROUP_2 | Group::GROUP_3)
 }
 
 fn active_collision_events() -> ActiveEvents {
@@ -140,11 +145,14 @@ fn setup_scene(
                 uv_transform: Affine2::from_scale(Vec2::new(200., 200.)),
                 ..default()
             })),
+            FloorTag,
         ))
         .with_children(|parent| {
             parent.spawn((
                 Collider::cuboid(150.0, 0.1, 150.0),
                 Transform::from_xyz(0.0, 0.0, 0.0),
+                ActiveEvents::COLLISION_EVENTS,
+                CollisionGroups::new(Group::GROUP_3, Group::GROUP_1 | Group::GROUP_2), // Collision events when items touch floor
             ));
         });
     let cart = asset_server.load("models/shopping_cart.glb#Scene0");
@@ -249,6 +257,37 @@ fn setup_scene(
             ..default()
         },
     ));
+}
+
+fn detect_item_landing_floor(
+    mut commands: Commands,
+    mut collision_events: EventReader<CollisionEvent>,
+    parents_q: Query<&Parent>,
+    items_q: Query<(Entity, &Parent), With<ItemPickup>>,
+    floor_q: Query<&Parent, With<FloorTag>>,
+) {
+    for event in collision_events.read() {
+        if let CollisionEvent::Started(entity1, entity2, _) = event {
+            let mut item_entity = None;
+            let mut floor_entity = None;
+
+            for entity in [entity1, entity2] {
+                if let Ok(parent) = parents_q.get(*entity) {
+                    let parent_entity = parent.get();
+                    if items_q.get(parent_entity).is_ok() {
+                        item_entity = Some(parent_entity);
+                    }
+                    if floor_q.get(parent_entity).is_ok() {
+                        floor_entity = Some(parent_entity);
+                    }
+                }
+            }
+
+            if let (Some(item), Some(_)) = (item_entity, floor_entity) {
+                commands.entity(item).remove::<ItemIsStomped>();
+            }
+        }
+    }
 }
 
 fn add_item_origin_flag(

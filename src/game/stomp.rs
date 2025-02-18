@@ -1,19 +1,21 @@
 use crate::game::game::{CartCollider, FlagForItem, Player, TrackedByKDTree, CART_HEIGHT};
-use crate::game::item::{ItemPickup, ItemPickupCountry};
+use crate::game::item::{ItemIsStomped, ItemPickup, ItemPickupCountry};
 use crate::game::particles::{spawn_particle, ParticleAssets};
 use crate::state::InGameState;
 use bevy::app::App;
 use bevy::input::ButtonInput;
 use bevy::log::info;
 use bevy::math::{vec3, Vec3};
-use bevy::prelude::EventReader;
 use bevy::prelude::{
-    in_state, Commands, IntoSystemConfigs, KeyCode, Plugin, Query, Res, Transform, Update, With,
-    Without,
+    in_state, Added, Assets, Children, Color, Commands, Handle, HierarchyQueryExt,
+    IntoSystemConfigs, KeyCode, LinearRgba, MeshMaterial3d, OnRemove, Plugin, Query, Res,
+    SceneSpawner, StandardMaterial, Transform, Trigger, Update, With, Without,
 };
 use bevy::prelude::{DespawnRecursiveExt, GlobalTransform, Parent, ReflectResource, ResMut};
 use bevy::prelude::{Entity, Resource};
+use bevy::prelude::{EventReader, Vec2};
 use bevy::reflect::Reflect;
+use bevy::scene::SceneInstance;
 use bevy_inspector_egui::prelude::*;
 use bevy_inspector_egui::quick::ResourceInspectorPlugin;
 use bevy_rapier3d::pipeline::CollisionEvent;
@@ -29,9 +31,15 @@ impl Plugin for PlayerStompPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (handle_stomp, detect_item_landing_on_cart).run_if(in_state(InGameState::Playing)),
+            (
+                handle_stomp,
+                detect_item_landing_on_cart,
+                highlight_stomped_items,
+            )
+                .run_if(in_state(InGameState::Playing)),
         );
         app.add_event::<CollisionEvent>();
+        app.add_observer(trigger_stomp_removed);
         app.insert_resource(StompResource {
             stomp_distance: 5.0,
             stomp_away_force: -0.01,
@@ -82,9 +90,9 @@ fn detect_item_landing_on_cart(
             for &entity in [e1, e2].iter() {
                 // If parent of entity that collided is ItemPickup...
                 if let Ok((_, Some(parent))) = collider_q.get(*entity) {
-                    if let Ok(item_transform) = item_q.get(parent.get()) {
+                    if let Ok(query_result) = item_q.get(parent.get()) {
                         item_entity = Some(parent.get());
-                        item_result = Some(item_transform);
+                        item_result = Some(query_result);
                     }
                 }
                 // If current collided entity is CartCollider
@@ -103,26 +111,7 @@ fn detect_item_landing_on_cart(
                 if item_gt.translation().y >= cart_t.translation().y + CART_HEIGHT - 0.1 {
                     commands.entity(item_flag.0).despawn_recursive();
                     commands.entity(item).despawn_recursive();
-                    match item_country {
-                        ItemPickupCountry::USA => {
-                            score_res.score -= 10;
-                        }
-                        ItemPickupCountry::CA => {
-                            score_res.score += 10;
-                        }
-                        ItemPickupCountry::Mexico => {
-                            score_res.score += 5;
-                        }
-                        ItemPickupCountry::EU => {
-                            score_res.score += 2;
-                        }
-                        ItemPickupCountry::UK => {
-                            score_res.score += 3;
-                        }
-                        ItemPickupCountry::China => {
-                            score_res.score -= 1;
-                        }
-                    }
+                    score_res.score += item_country.scores();
                 }
             }
         }
@@ -161,9 +150,24 @@ fn handle_stomp(
                             stomp_settings.stomp_up_force * distance_factor;
                         let distance_factored_away_force =
                             stomp_settings.stomp_away_force * distance_factor;
-
-                        item_impulse.impulse += Vec3::new(0.0, distance_factored_up_force, 0.0)
+                        let mut impulse = Vec3::new(0.0, distance_factored_up_force, 0.0)
                             + (direction * distance_factored_away_force);
+                        if stomp_settings.stomp_away_force < 0.0 {
+                            let remaining_distance_xz = Vec2::new(
+                                item_t.translation.x - offset_to_cart.x,
+                                item_t.translation.z - offset_to_cart.z,
+                            );
+
+                            let impulse_xz = Vec2::new(impulse.x, impulse.z);
+
+                            // If the impulse in x and z would overshoot, scale it down
+                            if impulse_xz.length() > remaining_distance_xz.length() {
+                                impulse.x = remaining_distance_xz.x;
+                                impulse.z = remaining_distance_xz.y;
+                            }
+                        }
+                        item_impulse.impulse += impulse;
+                        commands.entity(entity).insert(ItemIsStomped);
                     }
                     if let Ok((american_t, mut american_impulse)) = american_q.get_mut(entity) {
                         let direction =
@@ -179,6 +183,51 @@ fn handle_stomp(
                 &particle,
                 stomp_settings.stomp_particles,
             );
+        }
+    }
+}
+
+fn highlight_stomped_items(
+    mut commands: Commands,
+    mut scene_q: Query<(&SceneInstance, &ItemPickupCountry), Added<ItemIsStomped>>,
+    scene_spawner: Res<SceneSpawner>,
+    mesh_query: Query<(Entity, &MeshMaterial3d<StandardMaterial>)>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    for (scene_instance, item_country) in &scene_q {
+        for child_entity in scene_spawner.iter_instance_entities(**scene_instance) {
+            if let Ok((mesh_entity, material_handle)) = mesh_query.get(child_entity) {
+                if let Some(material) = materials.get_mut(material_handle) {
+                    let mut new_material = material.clone();
+                    new_material.emissive = item_country.highlight_color();
+                    let new_material_handle = materials.add(new_material);
+                    commands
+                        .entity(mesh_entity)
+                        .insert(MeshMaterial3d(new_material_handle));
+                }
+            }
+        }
+    }
+}
+
+fn trigger_stomp_removed(
+    trigger: Trigger<OnRemove, ItemIsStomped>,
+    mut scene_q: Query<(Entity, &SceneInstance)>,
+    children_q: Query<&Children>,
+    scene_spawner: Res<SceneSpawner>,
+    mesh_query: Query<&MeshMaterial3d<StandardMaterial>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let entity = trigger.entity();
+    for child in children_q.iter_descendants(entity) {
+        if let Ok((_scene_entity, scene_instance)) = scene_q.get_mut(child) {
+            for child_entity in scene_spawner.iter_instance_entities(**scene_instance) {
+                if let Ok(material_handle) = mesh_query.get(child_entity) {
+                    if let Some(material) = materials.get_mut(material_handle) {
+                        material.emissive = LinearRgba::default();
+                    }
+                }
+            }
         }
     }
 }

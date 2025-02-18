@@ -1,6 +1,6 @@
 use crate::game::game::TrackedByKDTree;
 use bevy::math::Vec3;
-use bevy::prelude::Component;
+use bevy::prelude::{Component, LinearRgba};
 use bevy::utils::default;
 use bevy_rapier3d::prelude::*;
 use rand::distr::StandardUniform;
@@ -28,6 +28,9 @@ pub struct ItemPickup;
 pub struct ItemPickupCollider;
 
 #[derive(Component)]
+pub struct ItemIsStomped;
+
+#[derive(Component)]
 pub enum ItemPickupCountry {
     USA,
     CA,
@@ -45,6 +48,23 @@ impl ItemPickupCountry {
             ItemPickupCountry::EU => "images/fl_eu.png",
             ItemPickupCountry::UK => "images/fl_uk.png",
             ItemPickupCountry::China => "images/fl_cn.png",
+        }
+    }
+    pub fn highlight_color(&self) -> LinearRgba {
+        if self.scores() > 0 {
+            LinearRgba::rgb(0.0, 0.1, 0.0)
+        } else {
+            LinearRgba::rgb(0.1, 0.0, 0.0)
+        }
+    }
+    pub fn scores(&self) -> i32 {
+        match self {
+            ItemPickupCountry::USA => -10,
+            ItemPickupCountry::CA => 10,
+            ItemPickupCountry::Mexico => 5,
+            ItemPickupCountry::EU => 2,
+            ItemPickupCountry::UK => 3,
+            ItemPickupCountry::China => -1,
         }
     }
 }
@@ -67,7 +87,10 @@ fn item_pickup_mass() -> ColliderMassProperties {
 }
 
 fn item_pickup_collision_groups() -> CollisionGroups {
-    CollisionGroups::new(Group::GROUP_2, Group::GROUP_1 | Group::GROUP_2)
+    CollisionGroups::new(
+        Group::GROUP_2,
+        Group::GROUP_1 | Group::GROUP_2 | Group::GROUP_3,
+    )
 }
 
 fn item_origin_random() -> ItemPickupCountry {
