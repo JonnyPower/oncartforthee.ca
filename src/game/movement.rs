@@ -17,16 +17,16 @@ use bevy::prelude::{
 use bevy::time::Time;
 use bevy_inspector_egui::prelude::*;
 use bevy_inspector_egui::InspectorOptions;
-use bevy_rapier3d::prelude::{ExternalImpulse, Velocity};
+use bevy_rapier3d::prelude::{ExternalForce, ExternalImpulse, Velocity};
 use rand::{rng, Rng};
-use std::ops::Div;
+use std::ops::{Deref, Div};
 
 pub struct MovementPlugin;
 impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             FixedUpdate,
-            (handle_movement).run_if(in_state(InGameState::Playing)),
+            (handle_movement, apply_stubborn_force).run_if(in_state(InGameState::Playing)),
         );
         app.register_type::<MovementSettings>();
     }
@@ -37,14 +37,34 @@ impl Plugin for MovementPlugin {
 pub struct MovementSettings {
     pub speed: f32,
     pub max_speed: f32,
+    pub turn_speed_exp: f32,
+    pub low_speed_turn_factor: f32,
+    pub high_speed_turn_factor: f32,
+    pub stubborn_cart_strength: f32,
 }
 impl Default for MovementSettings {
     fn default() -> Self {
         MovementSettings {
-            speed: 10.0,
-            max_speed: 100.0,
+            speed: 2.0,
+            max_speed: 25.0,
+            turn_speed_exp: 2.0,
+            low_speed_turn_factor: 0.3,
+            high_speed_turn_factor: 1.2,
+            stubborn_cart_strength: -0.5,
         }
     }
+}
+
+fn apply_stubborn_force(
+    mut query: Query<(&Transform, &Velocity, &mut ExternalForce, &MovementSettings), With<Player>>,
+) {
+    // FIXME
+    // for (transform, velocity, mut external_force, player_ms) in query.iter_mut() {
+    //     if velocity.linvel.length() > 1.0 {
+    //         // Apply force in that direction
+    //         external_force.torque += Vec3::Y * player_ms.stubborn_cart_strength;
+    //     }
+    // }
 }
 
 fn handle_movement(
@@ -54,7 +74,7 @@ fn handle_movement(
         (
             Entity,
             &mut Transform,
-            &Velocity,
+            &mut Velocity,
             &mut ExternalImpulse,
             &MovementSettings,
             &Children,
@@ -64,41 +84,37 @@ fn handle_movement(
     >,
     player_animation_to_play_q: Query<(&AnimationToPlay), Without<Player>>,
     mut animationp_q: Query<(&mut AnimationPlayer)>,
-    mut camera_q: Query<
-        &mut Transform,
-        (With<GameCamera>, Without<Player>, Without<AnimationPlayer>),
-    >,
     particle: Res<ParticleAssets>,
     time: Res<Time>,
 ) {
     let mut direction = Vec3::ZERO;
 
     if keys.pressed(KeyCode::KeyW) {
-        direction -= Vec3::X;
+        direction -= Vec3::Z;
     }
     if keys.pressed(KeyCode::KeyS) {
-        direction += Vec3::X;
-    }
-    if keys.pressed(KeyCode::KeyA) {
         direction += Vec3::Z;
     }
+    if keys.pressed(KeyCode::KeyA) {
+        direction -= Vec3::X;
+    }
     if keys.pressed(KeyCode::KeyD) {
-        direction -= Vec3::Z;
+        direction += Vec3::X;
     }
 
     match player_q.get_single_mut() {
         Ok((
             player_e,
             mut player_t,
-            player_velocity,
+            mut player_velocity,
             mut player_impulse,
             player_ms,
             player_children,
             animation_player_link,
         )) => {
             if direction != Vec3::ZERO {
-                direction = direction.normalize();
-                let impulse_force = direction
+                direction = player_t.rotation * direction.normalize();
+                let mut impulse_force = direction
                     * player_ms.speed
                     * if keys.pressed(KeyCode::ShiftLeft) {
                         2.0
@@ -109,13 +125,21 @@ fn handle_movement(
                     player_impulse.impulse += impulse_force;
                     draw_run_particles(&mut commands, &player_t, &particle);
                 }
-                if player_velocity.linvel.length_squared() > 0.1 {
+                if player_velocity.linvel.length_squared() > 0.1
+                    || player_velocity.angvel.length_squared() > 0.1
+                {
                     let facing_direction = player_velocity.linvel.normalize();
-                    let target_rotation = Quat::from_rotation_arc(
-                        Vec3::NEG_Z,
-                        Vec3::new(facing_direction.x, 0.0, facing_direction.z),
-                    );
-                    player_t.rotation = target_rotation;
+                    let forward_dot = facing_direction.dot(player_t.rotation * Vec3::NEG_Z);
+                    // Flip the target direction if moving backward
+                    let adjusted_direction = if forward_dot < -0.1 {
+                        -Vec3::new(facing_direction.x, 0.0, facing_direction.z)
+                    } else {
+                        Vec3::new(facing_direction.x, 0.0, facing_direction.z)
+                    };
+                    let target_rotation = Quat::from_rotation_arc(Vec3::NEG_Z, adjusted_direction);
+                    player_t.rotation = player_t
+                        .rotation
+                        .lerp(target_rotation, 1.0 - (-time.delta_secs() * 5.0).exp());
                 }
             }
 
@@ -147,16 +171,6 @@ fn handle_movement(
             } else {
                 warn!("can't find animation to play under player entity");
             }
-
-            let mut camera_t = camera_q.single_mut();
-            camera_t.translation = camera_t.translation.lerp(
-                Vec3::new(
-                    player_t.translation.x + 5.0,
-                    camera_t.translation.y,
-                    player_t.translation.z,
-                ),
-                1.0 - (-time.delta_secs() * 5.0).exp(),
-            );
         }
         _ => {}
     }

@@ -1,4 +1,4 @@
-use crate::game::game::{CartCollider, FlagForItem, Player, TrackedByKDTree, CART_HEIGHT};
+use crate::game::game::{CartCollider, Player, TrackedByKDTree, CART_HEIGHT};
 use crate::game::item::{ItemIsStomped, ItemPickup, ItemPickupCountry};
 use crate::game::particles::{spawn_particle, ParticleAssets};
 use crate::state::InGameState;
@@ -9,13 +9,14 @@ use bevy::math::{vec3, Affine2, Vec3};
 use bevy::prelude::{
     default, in_state, Added, AssetServer, Assets, Children, Color, Commands, Component,
     FixedUpdate, Handle, HierarchyQueryExt, IntoSystemConfigs, KeyCode, LinearRgba, Mesh, Mesh3d,
-    MeshMaterial3d, OnRemove, PbrBundle, Plugin, Query, Res, SceneSpawner, StandardMaterial, Torus,
-    Transform, Trigger, Update, Vec3Swizzles, With, Without,
+    MeshBuilder, MeshMaterial3d, OnRemove, PbrBundle, Plane3d, Plugin, Quat, Query, Res,
+    SceneSpawner, StandardMaterial, Torus, Transform, Trigger, Update, Vec3Swizzles, With, Without,
 };
 use bevy::prelude::{DespawnRecursiveExt, GlobalTransform, Parent, ReflectResource, ResMut};
 use bevy::prelude::{Entity, Resource};
 use bevy::prelude::{EventReader, Vec2};
 use bevy::reflect::Reflect;
+use bevy::render::mesh::CircleMeshBuilder;
 use bevy::scene::SceneInstance;
 use bevy::utils::info;
 use bevy_inspector_egui::prelude::*;
@@ -39,13 +40,7 @@ impl Plugin for PlayerStompPlugin {
         );
         app.add_systems(
             FixedUpdate,
-            (
-                highlight_stomped_items,
-                draw_landing_reticule,
-                remove_landing_indicators,
-                update_landing_reticule,
-            )
-                .run_if(in_state(InGameState::Playing)),
+            (draw_landing_reticule, update_landing_reticule).run_if(in_state(InGameState::Playing)),
         );
         app.add_event::<CollisionEvent>();
         app.add_observer(trigger_stomp_removed);
@@ -94,21 +89,27 @@ fn draw_landing_reticule(
         (Entity, &Velocity, &Transform, &ItemPickupCountry),
         (With<ItemIsStomped>, Without<LandingIndicatorForItem>),
     >,
+    asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for (entity, velocity, transform, item_country) in item_q.iter() {
         if let Some(landing_position) = compute_landing_pos(transform.translation, velocity.linvel)
         {
-            let color = item_country.highlight_color();
+            let indicator_t = Transform::from_translation(landing_position).with_rotation(
+                Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)
+                    * Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2),
+            );
             let indicator = commands
                 .spawn((
-                    Mesh3d(meshes.add(Torus::new(0.1, 0.05))),
+                    Mesh3d(meshes.add(CircleMeshBuilder::new(0.1, 6).build())),
                     MeshMaterial3d(materials.add(StandardMaterial {
-                        base_color: Color::linear_rgba(color.red, color.green, color.blue, 0.5), // Semi-transparent red
-                        ..Default::default()
+                        base_color_texture: Some(asset_server.load(item_country.asset_path())),
+                        unlit: true,
+                        cull_mode: None,
+                        ..default()
                     })),
-                    Transform::from_translation(landing_position),
+                    indicator_t,
                     ItemForLandingIndicator(entity),
                 ))
                 .id();
@@ -119,6 +120,7 @@ fn draw_landing_reticule(
     }
 }
 
+// FIXME only update items if they've collided with something? for single threaded performance
 fn update_landing_reticule(
     item_q: Query<(&Velocity, &Transform, &LandingIndicatorForItem), (With<ItemIsStomped>)>,
     mut transform_q: Query<
@@ -129,13 +131,16 @@ fn update_landing_reticule(
         ),
     >,
 ) {
+    let mut y_offset = 0.0000;
     for (item_v, item_t, indicator_link) in item_q.iter() {
         if let Some(landing_pos) = compute_landing_pos(item_t.translation, item_v.linvel) {
             let indicator_e = indicator_link.0;
             if let Ok(mut indicator_t) = transform_q.get_mut(indicator_e) {
                 indicator_t.translation = landing_pos;
+                indicator_t.translation.y += y_offset;
             }
         }
+        y_offset += 0.0001; // hack to prevent flickering at same y
     }
 }
 
@@ -168,20 +173,6 @@ fn compute_landing_pos(initial_position: Vec3, initial_velocity: Vect) -> Option
 //     }
 // }
 
-fn remove_landing_indicators(
-    mut commands: Commands,
-    query: Query<(Entity, &LandingIndicatorForItem), Without<ItemIsStomped>>,
-) {
-    for (item_e, link) in query.iter() {
-        if let Some(mut indicator_ec) = commands.get_entity(link.0) {
-            indicator_ec.despawn_recursive();
-        }
-        if let Some(mut item_ec) = commands.get_entity(item_e) {
-            item_ec.remove::<LandingIndicatorForItem>();
-        }
-    }
-}
-
 fn detect_item_landing_on_cart(
     mut commands: Commands,
     mut collision_events: EventReader<CollisionEvent>,
@@ -190,7 +181,6 @@ fn detect_item_landing_on_cart(
         (
             &GlobalTransform,
             &ItemPickupCountry,
-            &FlagForItem,
             &LandingIndicatorForItem,
         ),
         With<ItemPickup>,
@@ -220,13 +210,12 @@ fn detect_item_landing_on_cart(
             }
             if let (
                 Some(item),
-                Some((item_gt, item_country, flag_link, indicator_link)),
+                Some((item_gt, item_country, indicator_link)),
                 Some(cart),
                 Some(cart_t),
             ) = (item_entity, item_result, cart_entity, cart_t)
             {
                 if item_gt.translation().y >= cart_t.translation().y + CART_HEIGHT - 0.1 {
-                    commands.entity(flag_link.0).despawn_recursive();
                     commands.entity(indicator_link.0).despawn_recursive();
                     commands.entity(item).despawn_recursive();
                     score_res.score += item_country.scores();
@@ -291,7 +280,9 @@ fn handle_stomp(
                         //     }
                         // }
                         item_impulse.impulse += impulse;
-                        commands.entity(entity).insert(ItemIsStomped);
+                        if let Some(mut entity_ec) = commands.get_entity(entity) {
+                            entity_ec.insert(ItemIsStomped);
+                        }
                     }
                     if let Ok((american_t, mut american_impulse)) = american_q.get_mut(entity) {
                         let direction =
@@ -311,45 +302,18 @@ fn handle_stomp(
     }
 }
 
-fn highlight_stomped_items(
-    mut commands: Commands,
-    mut scene_q: Query<(&SceneInstance, &ItemPickupCountry), Added<ItemIsStomped>>,
-    scene_spawner: Res<SceneSpawner>,
-    mesh_query: Query<(Entity, &MeshMaterial3d<StandardMaterial>)>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    for (scene_instance, item_country) in &scene_q {
-        for child_entity in scene_spawner.iter_instance_entities(**scene_instance) {
-            if let Ok((mesh_entity, material_handle)) = mesh_query.get(child_entity) {
-                if let Some(material) = materials.get_mut(material_handle) {
-                    let mut new_material = material.clone();
-                    new_material.emissive = item_country.highlight_color();
-                    let new_material_handle = materials.add(new_material);
-                    commands
-                        .entity(mesh_entity)
-                        .insert(MeshMaterial3d(new_material_handle));
-                }
-            }
-        }
-    }
-}
-
 fn trigger_stomp_removed(
     trigger: Trigger<OnRemove, ItemIsStomped>,
-    mut scene_q: Query<(Entity, &SceneInstance)>,
-    children_q: Query<&Children>,
-    scene_spawner: Res<SceneSpawner>,
-    mesh_query: Query<&MeshMaterial3d<StandardMaterial>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut commands: Commands,
+    indicator_q: Query<&LandingIndicatorForItem>,
 ) {
-    let entity = trigger.entity();
-    if let Ok((_scene_entity, scene_instance)) = scene_q.get_mut(entity) {
-        for child_entity in scene_spawner.iter_instance_entities(**scene_instance) {
-            if let Ok(material_handle) = mesh_query.get(child_entity) {
-                if let Some(material) = materials.get_mut(material_handle) {
-                    material.emissive = LinearRgba::NONE;
-                }
-            }
+    let item_e = trigger.entity();
+    if let Some(mut item_ec) = commands.get_entity(item_e) {
+        item_ec.remove::<LandingIndicatorForItem>();
+    }
+    if let Ok(indicator_e) = indicator_q.get(item_e) {
+        if let Some(indicator_ec) = commands.get_entity(indicator_e.0) {
+            indicator_ec.despawn_recursive();
         }
     }
 }

@@ -25,8 +25,8 @@ use bevy::render::mesh::skinning::SkinnedMesh;
 use bevy::scene::SceneInstanceReady;
 use bevy_rapier3d::pipeline::CollisionEvent;
 use bevy_rapier3d::prelude::{
-    ActiveEvents, Collider, CollisionGroups, Damping, ExternalImpulse, GravityScale, Group,
-    RigidBody, Velocity,
+    ActiveEvents, Collider, CollisionGroups, Damping, ExternalForce, ExternalImpulse, GravityScale,
+    Group, RigidBody, Velocity,
 };
 use bevy_rapier3d::rapier::prelude::{ColliderBuilder, InteractionGroups};
 use bevy_spatial::{AutomaticUpdate, SpatialStructure, TransformMode};
@@ -39,13 +39,12 @@ impl Plugin for GamePlugin {
         app.add_systems(OnEnter(InGameState::Playing), setup_scene);
         app.add_systems(
             Update,
-            (add_item_origin_flag, detect_item_landing_floor)
-                .run_if(in_state(InGameState::Playing)),
+            (detect_item_landing_floor).run_if(in_state(InGameState::Playing)),
         );
-        app.add_systems(
-            FixedUpdate,
-            (keep_flag_facing_camera).run_if(in_state(InGameState::Playing)),
-        );
+        // app.add_systems(
+        //     FixedUpdate,
+        //     ().run_if(in_state(InGameState::Playing)),
+        // );
         app.add_plugins(MovementPlugin);
         app.add_plugins(ParticlesPlugin);
         app.add_plugins(PlayerStompPlugin);
@@ -64,6 +63,7 @@ pub struct TrackedByKDTree;
 #[require(
     Velocity,
     ExternalImpulse,
+    ExternalForce,
     GravityScale,
     RigidBody,
     TrackedByKDTree,
@@ -73,10 +73,10 @@ pub struct TrackedByKDTree;
 pub struct Player;
 
 fn player_movement_defaults() -> MovementSettings {
-    MovementSettings {
-        speed: 2.0,
-        max_speed: 25.0,
-    }
+    let mut player_ms = MovementSettings::default();
+    player_ms.speed = 2.0;
+    player_ms.max_speed = 25.0;
+    player_ms
 }
 
 fn player_damping() -> Damping {
@@ -96,12 +96,6 @@ pub struct American;
     ActiveEvents(active_collision_events)
 )]
 pub struct CartCollider;
-
-#[derive(Component)]
-pub struct ItemForFlag(pub Entity);
-
-#[derive(Component)]
-pub struct FlagForItem(pub Entity);
 
 #[derive(Component)]
 pub struct FloorTag;
@@ -285,60 +279,6 @@ fn detect_item_landing_floor(
             // If an item collided with a floor, remove `ItemIsStomped`
             if let (Some(item), Some(_)) = (item_entity, floor_entity) {
                 commands.entity(item).remove::<ItemIsStomped>();
-            }
-        }
-    }
-}
-
-fn add_item_origin_flag(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    asset_server: Res<AssetServer>,
-    mut country_q: Query<(Entity, &Transform, &ItemPickupCountry), Added<ItemPickupCountry>>,
-    mut camera_q: Query<&Transform, With<GameCamera>>,
-) {
-    if let Ok(camera_t) = camera_q.get_single() {
-        for (entity, item_t, country) in country_q.iter_mut() {
-            let flag_e = commands
-                .spawn((
-                    Mesh3d(
-                        meshes.add(
-                            Plane3d {
-                                normal: Dir3::Z,
-                                ..default()
-                            }
-                            .mesh()
-                            .size(0.2, 0.15),
-                        ),
-                    ),
-                    MeshMaterial3d(materials.add(StandardMaterial {
-                        base_color_texture: Some(asset_server.load(country.asset_path())),
-                        unlit: true,
-                        cull_mode: None,
-                        ..default()
-                    })),
-                    Transform::from(*item_t).looking_at(camera_t.translation, Vec3::Y),
-                    ItemForFlag(entity),
-                ))
-                .id();
-            commands.entity(entity).insert(FlagForItem(flag_e));
-        }
-    }
-}
-
-fn keep_flag_facing_camera(
-    mut commands: Commands,
-    mut country_q: Query<(&mut Transform, &ItemForFlag)>,
-    mut transform_q: Query<&mut Transform, (Without<ItemForFlag>, Without<GameCamera>)>,
-    camera_q: Query<&GlobalTransform, (With<GameCamera>, Without<ItemForFlag>)>,
-) {
-    if let Ok(camera_gt) = camera_q.get_single() {
-        for (mut flag_t, target) in country_q.iter_mut() {
-            if let Ok(target_t) = transform_q.get(target.0) {
-                let camera_world_pos = camera_gt.translation();
-                flag_t.translation = target_t.translation;
-                flag_t.look_at(camera_world_pos, Vec3::Y);
             }
         }
     }
