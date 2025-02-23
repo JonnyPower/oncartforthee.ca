@@ -1,6 +1,6 @@
-use crate::game::game::{CartCollider, Player, TrackedByKDTree, CART_HEIGHT};
+use crate::game::effects::particles::{spawn_particle, ParticleAssets};
+use crate::game::game::{CartCollider, Player, ScoreResource, TrackedByKDTree, CART_HEIGHT};
 use crate::game::item::{ItemIsStomped, ItemPickup, ItemPickupCountry};
-use crate::game::particles::{spawn_particle, ParticleAssets};
 use crate::state::InGameState;
 use bevy::app::App;
 use bevy::input::ButtonInput;
@@ -73,10 +73,6 @@ struct ItemForLandingIndicator(Entity);
 #[derive(Component)]
 struct LandingIndicatorForItem(Entity);
 
-#[derive(Resource)]
-pub struct ScoreResource {
-    pub(crate) score: i32,
-}
 impl Default for ScoreResource {
     fn default() -> Self {
         ScoreResource { score: 0 }

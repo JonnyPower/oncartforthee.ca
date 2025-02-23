@@ -23,8 +23,8 @@ impl Plugin for ParticlesPlugin {
 
 #[derive(Resource)]
 pub struct ParticleAssets {
-    pub(crate) mesh: Handle<Mesh>,
-    pub(crate) material: Handle<StandardMaterial>,
+    pub mesh: Handle<Mesh>,
+    pub material: Handle<StandardMaterial>,
 }
 impl FromWorld for ParticleAssets {
     fn from_world(world: &mut World) -> Self {

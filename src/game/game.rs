@@ -2,13 +2,13 @@ use crate::camera::GameCamera;
 use crate::game::animation::{
     setup_animation_graph, AnimationPlugin, AnimationToPlay, PlayerOnStep,
 };
+use crate::game::effects::particles::ParticlesPlugin;
+use crate::game::effects::stomp::PlayerStompPlugin;
 use crate::game::hud::HudPlugin;
 use crate::game::item::{ItemIsStomped, ItemPickup, ItemPickupCollider, ItemPickupCountry};
 use crate::game::map::map_object::MiscShopObjects;
 use crate::game::map::wall::spawn_walls;
 use crate::game::movement::{MovementPlugin, MovementSettings};
-use crate::game::particles::ParticlesPlugin;
-use crate::game::stomp::PlayerStompPlugin;
 use crate::state::{InGameState, TitleMenuState};
 use bevy::app::App;
 use bevy::color::palettes::css::ORANGE_RED;
@@ -22,8 +22,8 @@ use bevy::prelude::{
     BuildChildren, Camera, ChildBuild, Children, Color, Commands, Component, Dir3,
     DirectionalLight, Entity, EventReader, FixedUpdate, GlobalTransform, Handle, HierarchyQueryExt,
     IntoSystemConfigs, Mesh, Mesh3d, MeshMaterial3d, Meshable, Name, OnEnter, Parent, PbrBundle,
-    Plane3d, Plugin, Quat, Query, Res, ResMut, SceneRoot, Sprite, SpriteBundle, StandardMaterial,
-    Transform, Trigger, Update, Vec2, Vec3, With, Without,
+    Plane3d, Plugin, Quat, Query, Res, ResMut, Resource, SceneRoot, Sprite, SpriteBundle,
+    StandardMaterial, Transform, Trigger, Update, Vec2, Vec3, With, Without,
 };
 use bevy::render::mesh::skinning::SkinnedMesh;
 use bevy::scene::SceneInstanceReady;
@@ -113,6 +113,11 @@ fn cart_collider_groups() -> CollisionGroups {
 
 fn active_collision_events() -> ActiveEvents {
     ActiveEvents::COLLISION_EVENTS
+}
+
+#[derive(Resource)]
+pub struct ScoreResource {
+    pub score: i32,
 }
 
 pub const CART_HEIGHT: f32 = 0.5;

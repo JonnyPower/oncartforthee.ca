@@ -1,4 +1,4 @@
-use crate::game::stomp::ScoreResource;
+use crate::game::game::ScoreResource;
 use crate::state::InGameState;
 use bevy::app::App;
 use bevy::color::Color;
