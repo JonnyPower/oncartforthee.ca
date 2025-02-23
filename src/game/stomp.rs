@@ -286,7 +286,7 @@ fn handle_stomp(
                         // }
                         item_impulse.impulse += impulse;
                         if let Some(mut entity_ec) = commands.get_entity(entity) {
-                            entity_ec.insert(ItemIsStomped);
+                            entity_ec.try_insert(ItemIsStomped);
                         }
                     }
                     if let Ok((american_t, mut american_impulse)) = american_q.get_mut(entity) {

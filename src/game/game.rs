@@ -27,9 +27,11 @@ use bevy::prelude::{
 use bevy::render::mesh::skinning::SkinnedMesh;
 use bevy::scene::SceneInstanceReady;
 use bevy_rapier3d::pipeline::CollisionEvent;
+use bevy_rapier3d::plugin::WriteRapierContext;
 use bevy_rapier3d::prelude::{
     ActiveEvents, Ccd, Collider, CollisionGroups, Damping, ExternalForce, ExternalImpulse,
-    GravityScale, Group, RigidBody, Velocity,
+    GravityScale, Group, KinematicCharacterController, RapierContext, RapierContextSimulation,
+    RigidBody, Velocity,
 };
 use bevy_rapier3d::rapier::prelude::{ColliderBuilder, InteractionGroups};
 use bevy_spatial::{AutomaticUpdate, SpatialStructure, TransformMode};
@@ -171,6 +173,9 @@ fn setup_scene(
                 cart_collider,
                 Transform::from_xyz(0.0, CART_HEIGHT, -1.25),
                 CartCollider,
+                KinematicCharacterController {
+                    ..KinematicCharacterController::default()
+                },
             ));
             parent
                 .spawn((
