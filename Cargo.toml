@@ -14,6 +14,9 @@ bevy_spatial = { version = "0.10.0", default-features = false, features = ["kdtr
 blenvy = { version = "0.1.0-alpha.1" }
 talc = { version = "4.4.2", default-features = false, features = ["lock_api", "counters"]}
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+bevy_rapier3d = { version = "0.29", features = ["parallel"] }
+
 [dependencies.web-sys]
 version = "0.3.77"
 features = [

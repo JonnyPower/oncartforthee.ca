@@ -5,6 +5,7 @@ use crate::game::animation::{
 use crate::game::hud::HudPlugin;
 use crate::game::item::{ItemIsStomped, ItemPickup, ItemPickupCollider, ItemPickupCountry};
 use crate::game::map::map_object::MiscShopObjects;
+use crate::game::map::wall::spawn_walls;
 use crate::game::movement::{MovementPlugin, MovementSettings};
 use crate::game::particles::ParticlesPlugin;
 use crate::game::stomp::PlayerStompPlugin;
@@ -139,17 +140,18 @@ fn setup_scene(
     commands
         .spawn((
             Name::new("Floor"),
-            Mesh3d(meshes.add(Plane3d::default().mesh().size(300.0, 300.0))),
+            Mesh3d(meshes.add(Plane3d::default().mesh().size(25.0, 82.0))),
             MeshMaterial3d(materials.add(StandardMaterial {
                 base_color_texture: Some(tile_image.clone()),
-                uv_transform: Affine2::from_scale(Vec2::new(200., 200.)),
+                uv_transform: Affine2::from_scale(Vec2::new(25.0 / 5.0, 82.0 / 5.0)),
                 ..default()
             })),
             FloorTag,
+            Transform::from_xyz(-1.5, 0.0, 0.0),
         ))
         .with_children(|parent| {
             parent.spawn((
-                Collider::cuboid(150.0, 0.01, 150.0),
+                Collider::cuboid(12.5, 0.01, 41.0),
                 Transform::from_xyz(0.0, 0.0, 0.0),
                 ActiveEvents::COLLISION_EVENTS,
                 CollisionGroups::new(Group::GROUP_3, Group::GROUP_1 | Group::GROUP_2), // Collision events when items touch floor
@@ -173,9 +175,10 @@ fn setup_scene(
                 cart_collider,
                 Transform::from_xyz(0.0, CART_HEIGHT, -1.25),
                 CartCollider,
-                KinematicCharacterController {
-                    ..KinematicCharacterController::default()
-                },
+            ));
+            parent.spawn((
+                Collider::capsule_y(0.65, 0.25),
+                Transform::from_xyz(0.0, 0.9, 0.1),
             ));
             parent
                 .spawn((
@@ -231,8 +234,8 @@ fn setup_scene(
         ))
         .with_children(|parent| {
             parent.spawn((
-                Collider::cuboid(0.5, 3.0, 0.5),
-                Transform::from_xyz(0.0, 0.0, 0.0),
+                Collider::cuboid(0.5, 0.75, 0.5),
+                Transform::from_xyz(0.0, 0.75, 0.0),
             ));
         });
     for i in -4..4 {
@@ -248,6 +251,34 @@ fn setup_scene(
             ));
         }
     }
+    spawn_walls(
+        &mut commands,
+        &asset_server,
+        Vec3::new(11.0, 0.0, 41.0),
+        Vec3::new(11.0, 0.0, -41.0),
+    )
+    .expect("failed to create walls");
+    spawn_walls(
+        &mut commands,
+        &asset_server,
+        Vec3::new(11.0, 0.0, 41.0),
+        Vec3::new(-14.0, 0.0, 41.0),
+    )
+    .expect("failed to create walls");
+    spawn_walls(
+        &mut commands,
+        &asset_server,
+        Vec3::new(-14.0, 0.0, 41.0),
+        Vec3::new(-14.0, 0.0, -41.0),
+    )
+    .expect("failed to create walls");
+    spawn_walls(
+        &mut commands,
+        &asset_server,
+        Vec3::new(-14.0, 0.0, -41.0),
+        Vec3::new(11.0, 0.0, -41.0),
+    )
+    .expect("failed to create walls");
     commands.spawn((
         DirectionalLight {
             illuminance: 2_000.0,
