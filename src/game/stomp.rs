@@ -122,7 +122,8 @@ fn draw_landing_reticule(
 
 // FIXME only update items if they've collided with something? for single threaded performance
 fn update_landing_reticule(
-    item_q: Query<(&Velocity, &Transform, &LandingIndicatorForItem), (With<ItemIsStomped>)>,
+    mut commands: Commands,
+    item_q: Query<(Entity, &Velocity, &Transform, &LandingIndicatorForItem), (With<ItemIsStomped>)>,
     mut transform_q: Query<
         &mut Transform,
         (
@@ -132,15 +133,19 @@ fn update_landing_reticule(
     >,
 ) {
     let mut y_offset = 0.0000;
-    for (item_v, item_t, indicator_link) in item_q.iter() {
-        if let Some(landing_pos) = compute_landing_pos(item_t.translation, item_v.linvel) {
-            let indicator_e = indicator_link.0;
-            if let Ok(mut indicator_t) = transform_q.get_mut(indicator_e) {
-                indicator_t.translation = landing_pos;
-                indicator_t.translation.y += y_offset;
+    for (item_e, item_v, item_t, indicator_link) in item_q.iter() {
+        if item_v.linvel.length() < 0.1 {
+            commands.entity(item_e).remove::<ItemIsStomped>();
+        } else {
+            if let Some(landing_pos) = compute_landing_pos(item_t.translation, item_v.linvel) {
+                let indicator_e = indicator_link.0;
+                if let Ok(mut indicator_t) = transform_q.get_mut(indicator_e) {
+                    indicator_t.translation = landing_pos;
+                    indicator_t.translation.y += y_offset;
+                }
             }
+            y_offset += 0.0001; // hack to prevent flickering at same y
         }
-        y_offset += 0.0001; // hack to prevent flickering at same y
     }
 }
 

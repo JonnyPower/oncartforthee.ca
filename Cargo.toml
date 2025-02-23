@@ -7,13 +7,11 @@ edition = "2021"
 bevy = { version = "0.15", features = ["webgpu"] } 
 bevy_egui = "0.32.0"
 bevy-inspector-egui = "0.29"
-bevy_rapier3d =  { version = "0.28", features = [ "simd-stable", "debug-render-3d" ] }
 getrandom = { version = "0.3", features = ["wasm_js"] }
 rand = { version = "0.9" }
+bevy_rapier3d =  { version = "0.29", features = [ "simd-stable", "debug-render-3d", "parallel" ] }
 bevy_spatial = { version = "0.10.0", default-features = false, features = ["kdtree"] }
-
-[profile.dev.package.bevy_rapier3d]
-opt-level = 3
+blenvy = { version = "0.1.0-alpha.1" }
 
 [dependencies.web-sys]
 version = "0.3.77"
@@ -27,4 +25,7 @@ opt-level = 1
 
 # Enable a large amount of optimization in the dev profile for dependencies.
 [profile.dev.package."*"]
+opt-level = 3
+
+[profile.dev.package.bevy_rapier3d]
 opt-level = 3

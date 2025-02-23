@@ -8,11 +8,11 @@ use bevy::app::App;
 use bevy::color::palettes::basic::WHITE;
 use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{
-    debug, in_state, info, warn, AnimationPlayer, Assets, ButtonInput, Camera, Children, Command,
-    Commands, Component, Dir2, Entity, FixedUpdate, FloatExt, FromWorld, Handle, IntoSystemConfigs,
-    KeyCode, Material, Mesh, Mesh3d, MeshMaterial3d, Plugin, Quat, Query, Reflect, Res, Resource,
-    Sphere, StableInterpolate, StandardMaterial, Timer, TimerMode, Transform, Update, Vec3Swizzles,
-    With, Without, World,
+    debug, in_state, info, warn, AnimationPlayer, AnimationTransitions, Assets, ButtonInput,
+    Camera, Children, Command, Commands, Component, Dir2, Entity, FixedUpdate, FloatExt, FromWorld,
+    Handle, IntoSystemConfigs, KeyCode, Material, Mesh, Mesh3d, MeshMaterial3d, Plugin, Quat,
+    Query, Reflect, Res, Resource, Sphere, StableInterpolate, StandardMaterial, Timer, TimerMode,
+    Transform, Update, Vec3Swizzles, With, Without, World,
 };
 use bevy::time::Time;
 use bevy_inspector_egui::prelude::*;
@@ -20,6 +20,7 @@ use bevy_inspector_egui::InspectorOptions;
 use bevy_rapier3d::prelude::{ExternalForce, ExternalImpulse, Velocity};
 use rand::{rng, Rng};
 use std::ops::{Deref, Div};
+use std::time::Duration;
 
 pub struct MovementPlugin;
 impl Plugin for MovementPlugin {
@@ -83,7 +84,7 @@ fn handle_movement(
         With<Player>,
     >,
     player_animation_to_play_q: Query<(&AnimationToPlay), Without<Player>>,
-    mut animationp_q: Query<(&mut AnimationPlayer)>,
+    mut animationp_q: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
     particle: Res<ParticleAssets>,
     time: Res<Time>,
 ) {
@@ -123,7 +124,6 @@ fn handle_movement(
                     };
                 if player_velocity.linvel.length() < player_ms.max_speed {
                     player_impulse.impulse += impulse_force;
-                    draw_run_particles(&mut commands, &player_t, &particle);
                 }
                 if player_velocity.linvel.length_squared() > 0.1
                     || player_velocity.angvel.length_squared() > 0.1
@@ -148,7 +148,9 @@ fn handle_movement(
                 .iter()
                 .find_map(|&child| player_animation_to_play_q.get(child).ok())
             {
-                if let Ok(mut animation_p) = animationp_q.get_mut(animation_player_link.0) {
+                if let Ok((mut animation_p, mut transitions)) =
+                    animationp_q.get_mut(animation_player_link.0)
+                {
                     let opt_animation = animation_p.animation_mut(player_animation.index);
                     if player_velocity.linvel.length_squared() > 1.0 {
                         match opt_animation {
@@ -156,7 +158,13 @@ fn handle_movement(
                                 animation.resume();
                             }
                             None => {
-                                animation_p.play(player_animation.index).repeat();
+                                transitions
+                                    .play(
+                                        &mut animation_p,
+                                        player_animation.index,
+                                        Duration::from_millis(250),
+                                    )
+                                    .repeat();
                             }
                             _ => {}
                         }
@@ -173,36 +181,5 @@ fn handle_movement(
             }
         }
         _ => {}
-    }
-}
-
-fn draw_run_particles(
-    mut commands: &mut Commands,
-    player_t: &Transform,
-    particle: &Res<ParticleAssets>,
-) {
-    let mut rng = rng();
-    // Spawn a bunch of particles.
-    for _ in 0..3 {
-        let size = rng.random_range(0.01..0.03);
-        let particle_spawn = player_t.translation
-            + player_t.back().div(Vec3::splat(2.5))
-            + Vec3::new(
-                rng.random_range(-0.25..0.25),
-                0.,
-                rng.random_range(-0.25..0.25),
-            );
-        commands.queue(spawn_particle(
-            particle.mesh.clone(),
-            particle.material.clone(),
-            particle_spawn.reject_from_normalized(Vec3::Y),
-            rng.random_range(0.05..0.15),
-            size,
-            Vec3::new(
-                player_t.back().x + rng.random_range(-0.5..0.5),
-                rng.random_range(0.0..4.0),
-                player_t.back().z + rng.random_range(-0.5..0.5),
-            ),
-        ));
     }
 }

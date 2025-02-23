@@ -1,7 +1,10 @@
 use crate::camera::GameCamera;
-use crate::game::animation::{setup_animation_graph, AnimationPlugin, AnimationToPlay};
+use crate::game::animation::{
+    setup_animation_graph, AnimationPlugin, AnimationToPlay, PlayerOnStep,
+};
 use crate::game::hud::HudPlugin;
 use crate::game::item::{ItemIsStomped, ItemPickup, ItemPickupCollider, ItemPickupCountry};
+use crate::game::map::map_object::MiscShopObjects;
 use crate::game::movement::{MovementPlugin, MovementSettings};
 use crate::game::particles::ParticlesPlugin;
 use crate::game::stomp::PlayerStompPlugin;
@@ -13,20 +16,20 @@ use bevy::image::{ImageAddressMode, ImageLoaderSettings, ImageSampler, ImageSamp
 use bevy::math::Affine2;
 use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy::prelude::{
-    debug, default, in_state, info, light_consts, Added, AmbientLight, AnimationGraph,
-    AnimationGraphHandle, AnimationNodeIndex, AnimationPlayer, AssetServer, Assets, BuildChildren,
-    Camera, ChildBuild, Children, Color, Commands, Component, Dir3, DirectionalLight, Entity,
-    EventReader, FixedUpdate, GlobalTransform, Handle, HierarchyQueryExt, IntoSystemConfigs, Mesh,
-    Mesh3d, MeshMaterial3d, Meshable, Name, OnEnter, Parent, PbrBundle, Plane3d, Plugin, Quat,
-    Query, Res, ResMut, SceneRoot, Sprite, SpriteBundle, StandardMaterial, Transform, Trigger,
-    Update, Vec2, Vec3, With, Without,
+    debug, default, in_state, info, light_consts, Added, AmbientLight, AnimationClip,
+    AnimationGraph, AnimationGraphHandle, AnimationNodeIndex, AnimationPlayer, AssetServer, Assets,
+    BuildChildren, Camera, ChildBuild, Children, Color, Commands, Component, Dir3,
+    DirectionalLight, Entity, EventReader, FixedUpdate, GlobalTransform, Handle, HierarchyQueryExt,
+    IntoSystemConfigs, Mesh, Mesh3d, MeshMaterial3d, Meshable, Name, OnEnter, Parent, PbrBundle,
+    Plane3d, Plugin, Quat, Query, Res, ResMut, SceneRoot, Sprite, SpriteBundle, StandardMaterial,
+    Transform, Trigger, Update, Vec2, Vec3, With, Without,
 };
 use bevy::render::mesh::skinning::SkinnedMesh;
 use bevy::scene::SceneInstanceReady;
 use bevy_rapier3d::pipeline::CollisionEvent;
 use bevy_rapier3d::prelude::{
-    ActiveEvents, Collider, CollisionGroups, Damping, ExternalForce, ExternalImpulse, GravityScale,
-    Group, RigidBody, Velocity,
+    ActiveEvents, Ccd, Collider, CollisionGroups, Damping, ExternalForce, ExternalImpulse,
+    GravityScale, Group, RigidBody, Velocity,
 };
 use bevy_rapier3d::rapier::prelude::{ColliderBuilder, InteractionGroups};
 use bevy_spatial::{AutomaticUpdate, SpatialStructure, TransformMode};
@@ -66,6 +69,7 @@ pub struct TrackedByKDTree;
     ExternalForce,
     GravityScale,
     RigidBody,
+    Ccd(Ccd::enabled),
     TrackedByKDTree,
     MovementSettings(player_movement_defaults),
     Damping(player_damping)
@@ -143,7 +147,7 @@ fn setup_scene(
         ))
         .with_children(|parent| {
             parent.spawn((
-                Collider::cuboid(150.0, 0.1, 150.0),
+                Collider::cuboid(150.0, 0.01, 150.0),
                 Transform::from_xyz(0.0, 0.0, 0.0),
                 ActiveEvents::COLLISION_EVENTS,
                 CollisionGroups::new(Group::GROUP_3, Group::GROUP_1 | Group::GROUP_2), // Collision events when items touch floor
@@ -226,18 +230,18 @@ fn setup_scene(
                 Transform::from_xyz(0.0, 0.0, 0.0),
             ));
         });
-    for i in 0..100 {
-        let burger = asset_server.load("models/burger.glb#Scene0");
-        commands
-            .spawn((
-                Name::new("Burger"),
-                SceneRoot(burger),
-                Transform::from_xyz(-2.0, 1.0 * i as f32, -1.0),
-                ItemPickup,
-            ))
-            .with_children(|parent| {
-                parent.spawn((Collider::cuboid(0.1, 0.1, 0.1), ItemPickupCollider));
-            });
+    for i in -10..10 {
+        if i == 0 {
+            continue;
+        }
+        for j in -10..10 {
+            let shelf = MiscShopObjects::Shelf.spawn(&mut commands, &asset_server);
+            commands.entity(shelf).insert(Transform::from_xyz(
+                3.0 * i as f32,
+                0.0,
+                -10.0 * j as f32,
+            ));
+        }
     }
     commands.spawn((
         DirectionalLight {
