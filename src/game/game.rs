@@ -235,11 +235,11 @@ fn setup_scene(
                 Transform::from_xyz(0.0, 0.0, 0.0),
             ));
         });
-    for i in -10..10 {
+    for i in -4..4 {
         if i == 0 {
             continue;
         }
-        for j in -10..10 {
+        for j in -4..4 {
             let shelf = MiscShopObjects::Shelf.spawn(&mut commands, &asset_server);
             commands.entity(shelf).insert(Transform::from_xyz(
                 3.0 * i as f32,
