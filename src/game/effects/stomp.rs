@@ -31,8 +31,8 @@ use std::f32::consts::{PI, TAU};
 
 const GRAVITY: f32 = -9.81;
 
-pub struct PlayerStompPlugin;
-impl Plugin for PlayerStompPlugin {
+pub struct PlayerSkillStompPlugin;
+impl Plugin for PlayerSkillStompPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
@@ -52,8 +52,8 @@ impl Plugin for PlayerStompPlugin {
             stomp_distance_falloff: 0.5,
         });
         app.register_type::<StompResource>();
-        app.init_resource::<ScoreResource>();
         app.add_plugins(ResourceInspectorPlugin::<StompResource>::default());
+        app.init_resource::<ScoreResource>();
     }
 }
 

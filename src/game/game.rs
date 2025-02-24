@@ -3,7 +3,8 @@ use crate::game::animation::{
     setup_animation_graph, AnimationPlugin, AnimationToPlay, PlayerOnStep,
 };
 use crate::game::effects::particles::ParticlesPlugin;
-use crate::game::effects::stomp::PlayerStompPlugin;
+use crate::game::effects::stomp::PlayerSkillStompPlugin;
+use crate::game::effects::vacuum::PlayerSkillVacuumPlugin;
 use crate::game::hud::HudPlugin;
 use crate::game::item::{ItemIsStomped, ItemPickup, ItemPickupCollider, ItemPickupCountry};
 use crate::game::map::map_object::MiscShopObjects;
@@ -53,7 +54,8 @@ impl Plugin for GamePlugin {
         // );
         app.add_plugins(MovementPlugin);
         app.add_plugins(ParticlesPlugin);
-        app.add_plugins(PlayerStompPlugin);
+        app.add_plugins(PlayerSkillStompPlugin);
+        app.add_plugins(PlayerSkillVacuumPlugin);
         app.add_plugins(HudPlugin);
         app.add_plugins(AnimationPlugin);
         app.add_plugins(

@@ -92,6 +92,7 @@ pub fn setup_animation_graph(
                 let animation_clip = get_clip(animation_to_play.index, graph, &mut clips);
                 animation_clip.add_event(0.25, PlayerOnStep);
                 animation_clip.add_event(0.58, PlayerOnStep);
+                info!("clips added");
                 let mut transitions = AnimationTransitions::new();
                 transitions
                     .play(&mut player, animation_to_play.index, Duration::ZERO)

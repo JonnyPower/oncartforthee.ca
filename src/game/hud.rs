@@ -68,7 +68,7 @@ fn setup_hud(mut commands: Commands, asset_server: Res<AssetServer>) {
         SendItText,
     ));
     commands.spawn((
-        Text::new("WASD - Move\nSpace - Stomp\nShift - Run\nRight Click + Scroll - Camera"),
+        Text::new("WASD - Move\nSpace - Stomp\nLeft Click - Suck\nShift - Run\nRight Click + Scroll - Camera"),
         Node {
             position_type: PositionType::Absolute,
             top: Val::Px(10.0),

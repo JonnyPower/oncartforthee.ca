@@ -17,9 +17,9 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::{NoUserData, RapierDebugRenderPlugin, RapierPhysicsPlugin};
 
 /// SAFETY: The runtime environment must be single-threaded WASM.
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-#[global_allocator]
-static ALLOCATOR: talc::TalckWasm = unsafe { talc::TalckWasm::new_global() };
+// #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+// #[global_allocator]
+// static ALLOCATOR: talc::TalckWasm = unsafe { talc::TalckWasm::new_global() };
 
 fn main() {
     let mut app = App::new();
