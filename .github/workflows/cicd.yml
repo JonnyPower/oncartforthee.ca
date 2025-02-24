@@ -17,7 +17,7 @@ jobs:
         with:
           shared-key: "wasm32-release"
           cache-directories: "/home/runner/work/oncartforthee.ca/oncartforthee.ca/dist"
-      - run: RUSTFLAGS="--cfg=web_sys_unstable_apis --cfg=getrandom_backend=\"wasm_js\"" trunk build --release
+      - run: COMMIT_HASH="${{ github.sha }}" RUSTFLAGS="--cfg=web_sys_unstable_apis --cfg=getrandom_backend=\"wasm_js\"" trunk build --release
       - uses: actions/upload-artifact@v4
         with:
           name: dist-${{ github.sha }}

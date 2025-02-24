@@ -75,6 +75,16 @@ fn setup_hud(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..Default::default()
         },
     ));
+    let version = option_env!("COMMIT_HASH");
+    commands.spawn((
+        Text::new(version.unwrap_or("dev")),
+        Node {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(10.0),
+            right: Val::Px(10.0),
+            ..Default::default()
+        },
+    ));
 }
 
 fn update_hud(
