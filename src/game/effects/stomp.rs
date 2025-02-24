@@ -1,6 +1,7 @@
 use crate::game::effects::particles::{spawn_particle, ParticleAssets};
-use crate::game::game::{CartCollider, Player, ScoreResource, TrackedByKDTree, CART_HEIGHT};
+use crate::game::game::{ScoreResource, TrackedByKDTree};
 use crate::game::item::{ItemIsStomped, ItemPickup, ItemPickupCountry};
+use crate::game::player::{CartCollider, Player, CART_HEIGHT};
 use crate::state::InGameState;
 use bevy::app::App;
 use bevy::input::ButtonInput;

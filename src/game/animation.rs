@@ -1,5 +1,5 @@
 use crate::game::effects::particles::{spawn_particle, ParticleAssets};
-use crate::game::game::Player;
+use crate::game::player::Player;
 use crate::state::InGameState;
 use bevy::animation::{AnimationPlayer, AnimationTarget};
 use bevy::app::{App, Plugin, Update};

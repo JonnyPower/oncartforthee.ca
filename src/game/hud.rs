@@ -3,12 +3,11 @@ use crate::state::InGameState;
 use bevy::app::App;
 use bevy::color::Color;
 use bevy::prelude::{
-    in_state, AssetServer, BackgroundColor, BuildChildren, ChildBuild, Commands, Component, Entity,
+    in_state, AssetServer, BackgroundColor, BuildChildren, ChildBuild, Commands, Component,
     IntoSystemConfigs, LinearRgba, Node, OnEnter, Parent, Plugin, PositionType, Query, Res, Text,
     Update, Val, With, Without,
 };
 use bevy::text::TextSpan;
-use bevy_egui::egui::MouseWheelUnit::Line;
 use rand::Rng;
 
 pub struct HudPlugin;

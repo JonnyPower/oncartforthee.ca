@@ -3,11 +3,12 @@ use bevy::asset::AssetServer;
 use bevy::core::Name;
 use bevy::hierarchy::{BuildChildren, ChildBuild};
 use bevy::prelude::{
-    info, Bundle, Children, Commands, Entity, EntityCommands, GlobalTransform, HierarchyQueryExt,
-    Query, Res, SceneRoot, Transform, Trigger, With, Without,
+    Bundle, Children, Commands, Entity, HierarchyQueryExt, Query, Res, SceneRoot, Transform,
+    Trigger, With, Without,
 };
 use bevy::scene::SceneInstanceReady;
-use bevy_rapier3d::prelude::Collider;
+use bevy_rapier3d::geometry::Group;
+use bevy_rapier3d::prelude::{Collider, CollisionGroups};
 
 pub enum MiscShopObjects {
     Shelf,
@@ -20,6 +21,7 @@ impl MiscShopObjects {
             for collider_with_transform in self.colliders_with_transforms() {
                 parent.spawn(collider_with_transform);
             }
+            parent.spawn(self.player_collider());
         });
         obj.observe(on_scene_finish);
         obj.id()
@@ -61,6 +63,13 @@ impl MiscShopObjects {
                 ]
             }
         }
+    }
+    fn player_collider(&self) -> impl Bundle {
+        (
+            Collider::cuboid(1.5, 0.95, 0.55),
+            Transform::from_xyz(0.0, 0.95, 0.0),
+            CollisionGroups::new(Group::GROUP_4, Group::GROUP_1),
+        )
     }
     fn scene(&self, asset_server: &Res<AssetServer>) -> SceneRoot {
         let scene = asset_server.load(self.path());

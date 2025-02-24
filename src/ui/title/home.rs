@@ -1,22 +1,22 @@
-use bevy::app::App;
-use bevy::prelude::{AppExit, AssetServer, Commands, Component, default, DespawnRecursiveExt, Display, Entity, EventWriter, ImageNode, in_state, IntoSystemConfigs, NextState, Node, OnEnter, OnExit, Plugin, PositionType, Query, Res, ResMut, Update, Val, With};
-use bevy::ui::FocusPolicy;
-use bevy_egui::{egui, EguiContexts};
-use bevy_egui::egui::{Button, Color32, Frame, Response, RichText, TextStyle, Ui, Vec2};
 use crate::state::{AppState, TitleMenuState};
+use bevy::app::App;
+use bevy::prelude::{
+    default, in_state, AssetServer, Commands, Component, DespawnRecursiveExt, Display, Entity,
+    ImageNode, IntoSystemConfigs, NextState, Node, OnEnter, OnExit, Plugin, PositionType, Query,
+    Res, ResMut, Update, Val, With,
+};
+use bevy_egui::egui::{Button, Color32, Frame, Response, RichText, TextStyle, Ui, Vec2};
+use bevy_egui::{egui, EguiContexts};
 
 pub struct UITitleMenuHomePlugin;
 impl Plugin for UITitleMenuHomePlugin {
     fn build(&self, app: &mut App) {
+        app.add_systems(OnEnter(TitleMenuState::Home), title_menu_setup);
+        app.add_systems(OnExit(TitleMenuState::Home), title_menu_cleanup);
         app.add_systems(
-            OnEnter(TitleMenuState::Home),
-            title_menu_setup
+            Update,
+            title_menu_system.run_if(in_state(TitleMenuState::Home)),
         );
-        app.add_systems(
-            OnExit(TitleMenuState::Home),
-            title_menu_cleanup
-        );
-        app.add_systems(Update, title_menu_system.run_if(in_state(TitleMenuState::Home)));
     }
 }
 
@@ -26,10 +26,7 @@ const PANEL_BUTTON_SIZE: Vec2 = Vec2::new(286.0, 40.0);
 #[derive(Component)]
 struct TitleMenuTag;
 
-fn title_menu_setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
+fn title_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let title_back = asset_server.load("images/title_back.png");
     commands.spawn((
         ImageNode::new(title_back),
@@ -42,7 +39,7 @@ fn title_menu_setup(
             height: Val::Vh(100.0),
             ..default()
         },
-        TitleMenuTag
+        TitleMenuTag,
     ));
 }
 
@@ -55,7 +52,7 @@ fn title_menu_system(
         .frame(
             Frame::default()
                 .inner_margin(8.)
-                .fill(Color32::from_black_alpha(200))
+                .fill(Color32::from_black_alpha(200)),
         )
         .resizable(false)
         .show_separator_line(false)
@@ -64,7 +61,7 @@ fn title_menu_system(
             ui.label(
                 RichText::new("On Cart for Thee")
                     .text_style(TextStyle::Heading)
-                    .size(32.)
+                    .size(32.),
             );
             new_game_button(ui, &mut app_state);
             settings_button(ui, &mut title_menu_state);
@@ -78,16 +75,13 @@ fn title_menu_cleanup(cleanup: Query<Entity, With<TitleMenuTag>>, mut commands: 
 }
 
 fn title_button(ui: &mut Ui, text: &str) -> Response {
-    ui.add_sized(PANEL_BUTTON_SIZE, Button::new(
-        RichText::new(text)
-            .size(22.)
-    ))
+    ui.add_sized(
+        PANEL_BUTTON_SIZE,
+        Button::new(RichText::new(text).size(22.)),
+    )
 }
 
-fn new_game_button(
-    ui: &mut Ui,
-    app_state: &mut ResMut<NextState<AppState>>,
-) {
+fn new_game_button(ui: &mut Ui, app_state: &mut ResMut<NextState<AppState>>) {
     if title_button(ui, "New Game").clicked() {
         app_state.set(AppState::InGame);
     }
@@ -98,4 +92,3 @@ fn settings_button(ui: &mut Ui, title_menu_state: &mut ResMut<NextState<TitleMen
         title_menu_state.set(TitleMenuState::Settings)
     }
 }
-

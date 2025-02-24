@@ -5,3 +5,4 @@ mod hud;
 mod item;
 mod map;
 mod movement;
+pub mod player;

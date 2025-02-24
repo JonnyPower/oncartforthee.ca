@@ -1,5 +1,6 @@
-use crate::game::game::{Player, TrackedByKDTree};
+use crate::game::game::TrackedByKDTree;
 use crate::game::item::ItemPickup;
+use crate::game::player::Player;
 use bevy::app::App;
 use bevy::input::ButtonInput;
 use bevy::math::Vec3;

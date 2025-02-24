@@ -1,7 +1,7 @@
 use crate::camera::GameCamera;
 use crate::game::animation::{AnimationPlayerEntityForRootEntity, AnimationToPlay};
 use crate::game::effects::particles::ParticleAssets;
-use crate::game::game::Player;
+use crate::game::player::Player;
 use crate::state::InGameState;
 use bevy::animation::RepeatAnimation;
 use bevy::app::App;

@@ -10,6 +10,7 @@ use crate::game::item::{ItemIsStomped, ItemPickup, ItemPickupCollider, ItemPicku
 use crate::game::map::map_object::MiscShopObjects;
 use crate::game::map::wall::spawn_walls;
 use crate::game::movement::{MovementPlugin, MovementSettings};
+use crate::game::player::PlayerPlugin;
 use crate::state::{InGameState, TitleMenuState};
 use bevy::app::App;
 use bevy::color::palettes::css::ORANGE_RED;
@@ -52,6 +53,7 @@ impl Plugin for GamePlugin {
         //     FixedUpdate,
         //     ().run_if(in_state(InGameState::Playing)),
         // );
+        app.add_plugins(PlayerPlugin);
         app.add_plugins(MovementPlugin);
         app.add_plugins(ParticlesPlugin);
         app.add_plugins(PlayerSkillStompPlugin);
@@ -68,68 +70,22 @@ impl Plugin for GamePlugin {
 pub struct TrackedByKDTree;
 
 #[derive(Component)]
-#[require(
-    Velocity,
-    ExternalImpulse,
-    ExternalForce,
-    GravityScale,
-    RigidBody,
-    Ccd(Ccd::enabled),
-    TrackedByKDTree,
-    MovementSettings(player_movement_defaults),
-    Damping(player_damping)
-)]
-pub struct Player;
-
-fn player_movement_defaults() -> MovementSettings {
-    let mut player_ms = MovementSettings::default();
-    player_ms.speed = 2.0;
-    player_ms.max_speed = 25.0;
-    player_ms
-}
-
-fn player_damping() -> Damping {
-    Damping {
-        linear_damping: 8.0,
-        angular_damping: 1.0,
-    }
-}
-
-#[derive(Component)]
 #[require(TrackedByKDTree, Velocity, ExternalImpulse, GravityScale, RigidBody)]
 pub struct American;
 
 #[derive(Component)]
-#[require(
-    CollisionGroups(cart_collider_groups),
-    ActiveEvents(active_collision_events)
-)]
-pub struct CartCollider;
-
-#[derive(Component)]
 pub struct FloorTag;
-
-fn cart_collider_groups() -> CollisionGroups {
-    CollisionGroups::new(Group::GROUP_1, Group::GROUP_2 | Group::GROUP_3)
-}
-
-fn active_collision_events() -> ActiveEvents {
-    ActiveEvents::COLLISION_EVENTS
-}
 
 #[derive(Resource)]
 pub struct ScoreResource {
     pub score: i32,
 }
 
-pub const CART_HEIGHT: f32 = 0.5;
-
 fn setup_scene(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
-    mut graphs: ResMut<Assets<AnimationGraph>>,
 ) {
     info!("scene setup");
     // ground plane
@@ -163,40 +119,6 @@ fn setup_scene(
                 ActiveEvents::COLLISION_EVENTS,
                 CollisionGroups::new(Group::GROUP_3, Group::GROUP_1 | Group::GROUP_2), // Collision events when items touch floor
             ));
-        });
-    let cart = asset_server.load("models/shopping_cart.glb#Scene0");
-    let (graph, index) = AnimationGraph::from_clip(
-        asset_server.load(GltfAssetLabel::Animation(0).from_asset("models/shopping_cart.glb")),
-    );
-    let graph_handle = graphs.add(graph);
-    commands
-        .spawn((
-            Name::new("Player"),
-            Transform::from_xyz(0.0, 0.0, 0.0),
-            Player,
-        ))
-        .with_children(|parent| {
-            // Cart Collider
-            let cart_collider = Collider::cuboid(0.5, 0.5, 0.75);
-            parent.spawn((
-                cart_collider,
-                Transform::from_xyz(0.0, CART_HEIGHT, -1.25),
-                CartCollider,
-            ));
-            parent.spawn((
-                Collider::capsule_y(0.65, 0.25),
-                Transform::from_xyz(0.0, 0.9, 0.1),
-            ));
-            parent
-                .spawn((
-                    SceneRoot(cart),
-                    Transform::from_xyz(0.0, 0.0, -0.75),
-                    AnimationToPlay {
-                        graph_handle,
-                        index,
-                    },
-                ))
-                .observe(setup_animation_graph);
         });
     let syrup = asset_server.load("models/syrup.glb#Scene0");
     commands

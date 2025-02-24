@@ -1,15 +1,11 @@
-use crate::game::game::Player;
+use crate::game::player::Player;
 use crate::state::InGameState;
-use bevy::animation::AnimationPlayer;
-use bevy::audio::Pitch;
-use bevy::hierarchy::Children;
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::{
     default, in_state, App, ButtonInput, Camera, Camera2d, Camera3d, ClearColorConfig, Commands,
-    Component, Dir3, Entity, EventReader, IntoSystemConfigs, MouseButton, Plugin, Quat, Query, Res,
-    ResMut, Resource, Startup, Time, Transform, Update, Vec3, Window, With, Without,
+    Component, EventReader, IntoSystemConfigs, MouseButton, Plugin, Quat, Query, Res, ResMut,
+    Resource, Startup, Time, Transform, Update, Vec3, With, Without,
 };
-use bevy_rapier3d::dynamics::{ExternalImpulse, Velocity};
 
 #[derive(Component)]
 pub struct UICamera;

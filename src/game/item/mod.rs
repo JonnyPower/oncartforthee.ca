@@ -1,7 +1,5 @@
 use crate::game::game::TrackedByKDTree;
-use bevy::math::Vec3;
 use bevy::prelude::{Component, LinearRgba};
-use bevy::utils::default;
 use bevy_rapier3d::prelude::*;
 use rand::distr::StandardUniform;
 use rand::prelude::Distribution;
