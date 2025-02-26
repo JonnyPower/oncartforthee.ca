@@ -1,6 +1,5 @@
 use crate::camera::GameCamera;
 use crate::game::animation::{AnimationPlayerEntityForRootEntity, AnimationToPlay};
-use crate::game::effects::particles::ParticleAssets;
 use crate::game::player::Player;
 use crate::state::InGameState;
 use bevy::animation::RepeatAnimation;
@@ -30,6 +29,26 @@ impl Plugin for MovementPlugin {
             (handle_movement, apply_stubborn_force).run_if(in_state(InGameState::Playing)),
         );
         app.register_type::<MovementSettings>();
+        app.init_resource::<StepParticleAssets>();
+    }
+}
+
+#[derive(Resource)]
+pub struct StepParticleAssets {
+    pub mesh: Handle<Mesh>,
+    pub material: Handle<StandardMaterial>,
+}
+impl FromWorld for StepParticleAssets {
+    fn from_world(world: &mut World) -> Self {
+        Self {
+            mesh: world.resource_mut::<Assets<Mesh>>().add(Sphere::new(10.0)),
+            material: world
+                .resource_mut::<Assets<StandardMaterial>>()
+                .add(StandardMaterial {
+                    base_color: WHITE.into(),
+                    ..Default::default()
+                }),
+        }
     }
 }
 
@@ -85,7 +104,7 @@ fn handle_movement(
     >,
     player_animation_to_play_q: Query<(&AnimationToPlay), Without<Player>>,
     mut animationp_q: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
-    particle: Res<ParticleAssets>,
+    particle: Res<StepParticleAssets>,
     time: Res<Time>,
 ) {
     let mut direction = Vec3::ZERO;

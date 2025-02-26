@@ -1,17 +1,21 @@
-use crate::game::effects::particles::{spawn_particle, ParticleAssets};
+use crate::game::effects::particles::spawn_particle;
+use crate::game::movement::StepParticleAssets;
 use crate::game::player::Player;
+use crate::hierarchy::get_root_parent_entity;
 use crate::state::InGameState;
 use bevy::animation::{AnimationPlayer, AnimationTarget};
 use bevy::app::{App, Plugin, Update};
 use bevy::asset::Handle;
+use bevy::color::palettes::basic::WHITE;
 use bevy::hierarchy::Children;
 use bevy::log::info;
 use bevy::math::Vec3;
+use bevy::pbr::StandardMaterial;
 use bevy::prelude::{
     debug, in_state, warn, Added, AnimationClip, AnimationGraph, AnimationGraphHandle,
     AnimationNodeIndex, AnimationNodeType, AnimationTransitions, Assets, Commands, Component,
-    Entity, Event, HierarchyQueryExt, IntoSystemConfigs, Parent, Query, Reflect, Res, ResMut,
-    Transform, Trigger, With,
+    Entity, Event, FromWorld, HierarchyQueryExt, IntoSystemConfigs, Mesh, Parent, Query, Reflect,
+    Res, ResMut, Resource, Sphere, Transform, Trigger, With, World,
 };
 use bevy::scene::SceneInstanceReady;
 use rand::{rng, Rng};
@@ -108,23 +112,11 @@ pub fn setup_animation_graph(
     }
 }
 
-fn get_root_parent_entity(mut curr_entity: Entity, parent_query: &Query<&Parent>) -> Entity {
-    //Loop up all the way to the top parent
-    loop {
-        if let Ok(parent) = parent_query.get(curr_entity) {
-            curr_entity = parent.get();
-        } else {
-            break;
-        }
-    }
-    curr_entity
-}
-
 fn observe_on_step(
     trigger: Trigger<PlayerOnStep>,
     mut commands: Commands,
     transform_q: Query<&Transform, With<Player>>,
-    particle: Res<ParticleAssets>,
+    particle: Res<StepParticleAssets>,
 ) {
     if let Ok(player_t) = transform_q.get_single() {
         let mut rng = rng();

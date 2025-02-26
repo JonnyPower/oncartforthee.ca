@@ -1,5 +1,6 @@
 mod camera;
 mod game;
+mod hierarchy;
 mod state;
 mod ui;
 

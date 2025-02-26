@@ -5,8 +5,6 @@ use rand::distr::StandardUniform;
 use rand::prelude::Distribution;
 use rand::Rng;
 
-mod item_reader;
-
 #[derive(Component)]
 #[require(
     TrackedByKDTree,
@@ -84,7 +82,7 @@ fn item_pickup_mass() -> ColliderMassProperties {
     ColliderMassProperties::Mass(0.005)
 }
 
-fn item_pickup_collision_groups() -> CollisionGroups {
+pub fn item_pickup_collision_groups() -> CollisionGroups {
     CollisionGroups::new(
         Group::GROUP_2,
         Group::GROUP_1 | Group::GROUP_2 | Group::GROUP_3,

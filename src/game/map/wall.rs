@@ -1,16 +1,18 @@
 use bevy::asset::ErasedAssetLoader;
 use bevy::math::Vec3;
 use bevy::prelude::{
-    info, AssetServer, BuildChildren, ChildBuild, Commands, Entity, Quat, Res, Transform, Vec2,
-    Vec3Swizzles,
+    info, AssetServer, BuildChildren, ChildBuild, Commands, Entity, Mesh3d, PointLight, Quat, Res,
+    Transform, Vec2, Vec3Swizzles,
 };
 use bevy::scene::SceneRoot;
 use bevy_rapier3d::prelude::Collider;
+use blenvy::default;
 use std::f32::consts::PI;
 
 const WALL_SEGMENT_WIDTH: f32 = 2.5;
 const WALL_SEGMENT_HEIGHT: f32 = 3.01;
 const WALL_SEGMENT_DEPTH: f32 = 0.225;
+const WALL_LIGHT_MARGIN: f32 = 0.2;
 
 pub fn spawn_walls(
     commands: &mut Commands,
@@ -42,16 +44,35 @@ pub fn spawn_walls(
                     let pos = direction * i as f32 * WALL_SEGMENT_WIDTH;
                     info!("segment {}; pos: {}", i, pos);
                     info!("global pos: {}", pos + start_xz);
-                    entities.push(
-                        parent
-                            .spawn((
+                    let mut wall_entity_ec = parent.spawn((
+                        SceneRoot(asset_server.load("models/SM_Bld_Base_Wall_01.glb#Scene0")),
+                        Transform::from_xyz(pos.x, start.y, pos.y).with_rotation(rotation),
+                    ));
+                    entities.push(wall_entity_ec.id());
+                    if i % 4 == 0 {
+                        wall_entity_ec
+                            .with_child((
                                 SceneRoot(
-                                    asset_server.load("models/SM_Bld_Base_Wall_01.glb#Scene0"),
+                                    asset_server.load("models/SM_Prop_Lighting_Wall_03.glb#Scene0"),
                                 ),
-                                Transform::from_xyz(pos.x, start.y, pos.y).with_rotation(rotation),
+                                Transform::from_xyz(
+                                    0.0,
+                                    WALL_SEGMENT_HEIGHT - WALL_LIGHT_MARGIN,
+                                    WALL_SEGMENT_DEPTH / 2.0,
+                                ),
                             ))
-                            .id(),
-                    );
+                            .with_child((
+                                PointLight {
+                                    intensity: 10000.0,
+                                    ..default()
+                                },
+                                Transform::from_xyz(
+                                    0.0,
+                                    WALL_SEGMENT_HEIGHT - WALL_LIGHT_MARGIN,
+                                    0.5,
+                                ),
+                            ));
+                    }
                 }
                 let mid_point = direction * length / 2.0;
                 parent.spawn((

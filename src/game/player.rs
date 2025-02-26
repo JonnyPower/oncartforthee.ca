@@ -1,23 +1,31 @@
 use crate::game::animation::{setup_animation_graph, AnimationToPlay};
-use crate::game::game::TrackedByKDTree;
+use crate::game::game::{ScoreResource, TrackedByKDTree};
+use crate::game::item::{ItemPickup, ItemPickupCountry};
 use crate::game::movement::MovementSettings;
 use crate::state::InGameState;
-use bevy::app::App;
+use bevy::app::{App, Update};
 use bevy::asset::{AssetServer, Assets};
 use bevy::core::Name;
 use bevy::gltf::GltfAssetLabel;
+use bevy::hierarchy::{DespawnRecursiveExt, Parent};
 use bevy::prelude::{
-    AnimationGraph, BuildChildren, ChildBuild, Commands, Component, OnEnter, Plugin, Res, ResMut,
-    SceneRoot, Transform,
+    in_state, AnimationGraph, BuildChildren, ChildBuild, Commands, Component, Entity, EventReader,
+    GlobalTransform, IntoSystemConfigs, OnEnter, Plugin, Query, Res, ResMut, SceneRoot, Transform,
+    With,
 };
 use bevy_rapier3d::dynamics::Damping;
 use bevy_rapier3d::geometry::Collider;
+use bevy_rapier3d::pipeline::CollisionEvent::Started;
 use bevy_rapier3d::prelude::*;
 
 pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(InGameState::Playing), spawn_player);
+        app.add_systems(
+            Update,
+            (detect_item_landing_on_cart).run_if(in_state(InGameState::Playing)),
+        );
     }
 }
 
@@ -87,7 +95,7 @@ fn spawn_player(
         ))
         .with_children(|parent| {
             // Cart Collider
-            let cart_collider = Collider::cuboid(0.5, 0.5, 0.75);
+            let cart_collider = Collider::cuboid(0.5, CART_HEIGHT, 0.75);
             parent.spawn((
                 cart_collider,
                 Transform::from_xyz(0.0, CART_HEIGHT, -1.25),
@@ -108,4 +116,44 @@ fn spawn_player(
                 ))
                 .observe(setup_animation_graph);
         });
+}
+
+fn detect_item_landing_on_cart(
+    mut commands: Commands,
+    mut collision_events: EventReader<CollisionEvent>,
+    collider_q: Query<(Entity, Option<&Parent>), With<Collider>>,
+    item_q: Query<(&GlobalTransform, &ItemPickupCountry), With<ItemPickup>>,
+    cart_q: Query<(&GlobalTransform), With<CartCollider>>,
+    mut score_res: ResMut<ScoreResource>,
+) {
+    for event in collision_events.read() {
+        if let Started(e1, e2, _flags) = event {
+            let mut item_entity = None;
+            let mut cart_entity = None;
+            let mut item_result = None;
+            let mut cart_t = None;
+            for &entity in [e1, e2].iter() {
+                // If parent of entity that collided is ItemPickup...
+                if let Ok((_, Some(parent))) = collider_q.get(*entity) {
+                    if let Ok(query_result) = item_q.get(parent.get()) {
+                        item_entity = Some(parent.get());
+                        item_result = Some(query_result);
+                    }
+                }
+                // If current collided entity is CartCollider
+                if let Ok(cart_transform) = cart_q.get(*entity) {
+                    cart_entity = Some(entity);
+                    cart_t = Some(cart_transform);
+                }
+            }
+            if let (Some(item), Some((item_gt, item_country)), Some(cart), Some(cart_t)) =
+                (item_entity, item_result, cart_entity, cart_t)
+            {
+                if item_gt.translation().y >= cart_t.translation().y + 0.1 {
+                    commands.entity(item).despawn_recursive();
+                    score_res.score += item_country.scores();
+                }
+            }
+        }
+    }
 }

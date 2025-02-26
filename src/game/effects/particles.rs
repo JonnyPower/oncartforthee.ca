@@ -17,26 +17,6 @@ impl Plugin for ParticlesPlugin {
             Update,
             (simulate_particles).run_if(in_state(InGameState::Playing)),
         );
-        app.init_resource::<ParticleAssets>();
-    }
-}
-
-#[derive(Resource)]
-pub struct ParticleAssets {
-    pub mesh: Handle<Mesh>,
-    pub material: Handle<StandardMaterial>,
-}
-impl FromWorld for ParticleAssets {
-    fn from_world(world: &mut World) -> Self {
-        Self {
-            mesh: world.resource_mut::<Assets<Mesh>>().add(Sphere::new(10.0)),
-            material: world
-                .resource_mut::<Assets<StandardMaterial>>()
-                .add(StandardMaterial {
-                    base_color: WHITE.into(),
-                    ..Default::default()
-                }),
-        }
     }
 }
 
@@ -55,20 +35,36 @@ pub fn spawn_particle<M: Material>(
     size: f32,
     velocity: Vec3,
 ) -> impl Command {
+    spawn_particle_t(
+        mesh,
+        material,
+        Transform {
+            translation,
+            scale: Vec3::splat(size),
+            ..Default::default()
+        },
+        lifetime,
+        velocity,
+    )
+}
+
+pub fn spawn_particle_t<M: Material>(
+    mesh: Handle<Mesh>,
+    material: Handle<M>,
+    t: Transform,
+    lifetime: f32,
+    velocity: Vec3,
+) -> impl Command {
     move |world: &mut World| {
         world.spawn((
             Particle {
                 lifeteime_timer: Timer::from_seconds(lifetime, TimerMode::Once),
-                size,
+                size: t.scale.x,
                 velocity,
             },
             Mesh3d(mesh),
             MeshMaterial3d(material),
-            Transform {
-                translation,
-                scale: Vec3::splat(size),
-                ..Default::default()
-            },
+            t,
         ));
     }
 }

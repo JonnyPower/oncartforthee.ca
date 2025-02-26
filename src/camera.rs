@@ -1,11 +1,16 @@
 use crate::game::player::Player;
 use crate::state::InGameState;
+use bevy::core_pipeline::bloom::{Bloom, BloomSettings};
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::{
-    default, in_state, App, ButtonInput, Camera, Camera2d, Camera3d, ClearColorConfig, Commands,
-    Component, EventReader, IntoSystemConfigs, MouseButton, Plugin, Quat, Query, Res, ResMut,
-    Resource, Startup, Time, Transform, Update, Vec3, With, Without,
+    default, in_state, App, Asset, Assets, ButtonInput, Camera, Camera2d, Camera3d,
+    ClearColorConfig, Commands, Component, EventReader, IntoSystemConfigs, Material,
+    MaterialPlugin, MeshMaterial3d, MouseButton, Plugin, Quat, Query, Res, ResMut, Resource,
+    Startup, Time, Transform, TypePath, Update, Vec3, With, Without,
 };
+use bevy::render::render_resource::{AsBindGroup, ShaderRef};
+use bevy::sprite::Material2d;
+use blenvy::MaterialMeshBundle;
 
 #[derive(Component)]
 pub struct UICamera;
@@ -46,15 +51,18 @@ fn setup_camera(mut commands: Commands) {
     commands.spawn((
         Camera3d::default(),
         Camera {
+            hdr: true,
             order: 1,
             ..default()
         },
         Transform::from_xyz(5.0, 15.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
         GameCamera,
+        Bloom::NATURAL,
     ));
     commands.spawn((
         Camera2d::default(),
         Camera {
+            hdr: true,
             order: 10,
             clear_color: ClearColorConfig::None,
             ..default()

@@ -1,17 +1,19 @@
-use crate::game::effects::particles::{spawn_particle, ParticleAssets};
+use crate::game::effects::particles::spawn_particle;
 use crate::game::game::{ScoreResource, TrackedByKDTree};
 use crate::game::item::{ItemIsStomped, ItemPickup, ItemPickupCountry};
 use crate::game::player::{CartCollider, Player, CART_HEIGHT};
 use crate::state::InGameState;
 use bevy::app::App;
+use bevy::color::palettes::basic::WHITE;
 use bevy::input::ButtonInput;
 use bevy::log::info;
 use bevy::math::{vec3, Affine2, Vec3};
 use bevy::prelude::{
     default, in_state, Added, AssetServer, Assets, Children, Color, Commands, Component,
-    FixedUpdate, Handle, HierarchyQueryExt, IntoSystemConfigs, KeyCode, LinearRgba, Mesh, Mesh3d,
-    MeshBuilder, MeshMaterial3d, OnRemove, PbrBundle, Plane3d, Plugin, Quat, Query, Res,
-    SceneSpawner, StandardMaterial, Torus, Transform, Trigger, Update, Vec3Swizzles, With, Without,
+    FixedUpdate, FromWorld, Handle, HierarchyQueryExt, IntoSystemConfigs, KeyCode, LinearRgba,
+    Mesh, Mesh3d, MeshBuilder, MeshMaterial3d, OnRemove, PbrBundle, Plane3d, Plugin, Quat, Query,
+    Res, SceneSpawner, Sphere, StandardMaterial, Torus, Transform, Trigger, Update, Vec3Swizzles,
+    With, Without, World,
 };
 use bevy::prelude::{DespawnRecursiveExt, GlobalTransform, Parent, ReflectResource, ResMut};
 use bevy::prelude::{Entity, Resource};
@@ -37,7 +39,7 @@ impl Plugin for PlayerSkillStompPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (handle_stomp, detect_item_landing_on_cart).run_if(in_state(InGameState::Playing)),
+            (handle_stomp).run_if(in_state(InGameState::Playing)),
         );
         app.add_systems(
             FixedUpdate,
@@ -52,9 +54,29 @@ impl Plugin for PlayerSkillStompPlugin {
             stomp_particles: 80,
             stomp_distance_falloff: 0.5,
         });
+        app.init_resource::<StompParticleAssets>();
         app.register_type::<StompResource>();
         app.add_plugins(ResourceInspectorPlugin::<StompResource>::default());
         app.init_resource::<ScoreResource>();
+    }
+}
+
+#[derive(Resource)]
+pub struct StompParticleAssets {
+    pub mesh: Handle<Mesh>,
+    pub material: Handle<StandardMaterial>,
+}
+impl FromWorld for StompParticleAssets {
+    fn from_world(world: &mut World) -> Self {
+        Self {
+            mesh: world.resource_mut::<Assets<Mesh>>().add(Sphere::new(10.0)),
+            material: world
+                .resource_mut::<Assets<StandardMaterial>>()
+                .add(StandardMaterial {
+                    base_color: WHITE.into(),
+                    ..Default::default()
+                }),
+        }
     }
 }
 
@@ -175,58 +197,6 @@ fn compute_landing_pos(initial_position: Vec3, initial_velocity: Vect) -> Option
 //     }
 // }
 
-fn detect_item_landing_on_cart(
-    mut commands: Commands,
-    mut collision_events: EventReader<CollisionEvent>,
-    collider_q: Query<(Entity, Option<&Parent>), With<Collider>>,
-    item_q: Query<
-        (
-            &GlobalTransform,
-            &ItemPickupCountry,
-            &LandingIndicatorForItem,
-        ),
-        With<ItemPickup>,
-    >,
-    cart_q: Query<(&GlobalTransform), With<CartCollider>>,
-    mut score_res: ResMut<ScoreResource>,
-) {
-    for event in collision_events.read() {
-        if let Started(e1, e2, _flags) = event {
-            let mut item_entity = None;
-            let mut cart_entity = None;
-            let mut item_result = None;
-            let mut cart_t = None;
-            for &entity in [e1, e2].iter() {
-                // If parent of entity that collided is ItemPickup...
-                if let Ok((_, Some(parent))) = collider_q.get(*entity) {
-                    if let Ok(query_result) = item_q.get(parent.get()) {
-                        item_entity = Some(parent.get());
-                        item_result = Some(query_result);
-                    }
-                }
-                // If current collided entity is CartCollider
-                if let Ok(cart_transform) = cart_q.get(*entity) {
-                    cart_entity = Some(entity);
-                    cart_t = Some(cart_transform);
-                }
-            }
-            if let (
-                Some(item),
-                Some((item_gt, item_country, indicator_link)),
-                Some(cart),
-                Some(cart_t),
-            ) = (item_entity, item_result, cart_entity, cart_t)
-            {
-                if item_gt.translation().y >= cart_t.translation().y + CART_HEIGHT - 0.1 {
-                    commands.entity(indicator_link.0).despawn_recursive();
-                    commands.entity(item).despawn_recursive();
-                    score_res.score += item_country.scores();
-                }
-            }
-        }
-    }
-}
-
 fn handle_stomp(
     mut commands: Commands,
     keys: Res<ButtonInput<KeyCode>>,
@@ -240,7 +210,7 @@ fn handle_stomp(
         (&Transform, &mut ExternalImpulse),
         (Without<Player>, Without<ItemPickup>),
     >,
-    particle: Res<ParticleAssets>,
+    particle: Res<StompParticleAssets>,
     stomp_settings: Res<StompResource>,
 ) {
     if keys.just_pressed(KeyCode::Space) {
@@ -323,7 +293,7 @@ fn trigger_stomp_removed(
 fn draw_stomp_particles(
     mut commands: &mut Commands,
     player_t: &Transform,
-    particle: &Res<ParticleAssets>,
+    particle: &Res<StompParticleAssets>,
     stomp_particles: i32,
 ) {
     let mut rng = rng();
