@@ -22,6 +22,7 @@ use bevy_inspector_egui::quick::ResourceInspectorPlugin;
 use bevy_inspector_egui::InspectorOptions;
 use bevy_rapier3d::dynamics::{ExternalImpulse, Velocity};
 use bevy_rapier3d::geometry::Group;
+use bevy_rapier3d::na::RealField;
 use bevy_rapier3d::prelude::{Collider, CollisionGroups, QueryFilter, ReadRapierContext};
 use bevy_spatial::kdtree::KDTree3;
 use bevy_spatial::SpatialAccess;

@@ -9,7 +9,10 @@ use crate::game::game::GamePlugin;
 use crate::state::StatePlugin;
 use crate::ui::title::home::UITitleMenuHomePlugin;
 use bevy::asset::AssetMetaCheck;
-use bevy::prelude::{default, App, AssetPlugin, ImagePlugin, PluginGroup, Window, WindowPlugin};
+use bevy::prelude::{
+    default, App, AssetPlugin, ImagePlugin, MeshPickingPlugin, MeshPickingSettings, PluginGroup,
+    RayCastVisibility, Window, WindowPlugin,
+};
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy::render::RenderPlugin;
 use bevy::DefaultPlugins;
@@ -44,6 +47,7 @@ fn main() {
                 ..default()
             }),
     )
+    .add_plugins(MeshPickingPlugin)
     .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
     .add_plugins(EguiPlugin)
     .add_plugins(UITitleMenuHomePlugin)
@@ -54,5 +58,9 @@ fn main() {
         app.add_plugins(RapierDebugRenderPlugin::default())
             .add_plugins(WorldInspectorPlugin::new());
     }
+    app.insert_resource(MeshPickingSettings {
+        require_markers: false, // true means putting RayCastPickable on scene's mesh, which is work
+        ray_cast_visibility: RayCastVisibility::VisibleInView,
+    });
     app.run();
 }

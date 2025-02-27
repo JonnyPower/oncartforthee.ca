@@ -1,3 +1,4 @@
+use crate::game::effects::hook::hook_item_on_click;
 use crate::game::item::{ItemPickup, ItemPickupCollider};
 use bevy::asset::AssetServer;
 use bevy::core::Name;
@@ -95,20 +96,20 @@ fn on_scene_finish(
     for child in child_q.iter_descendants(trigger.entity()) {
         if let Ok((name, t)) = name_t_q.get(child) {
             if name.as_str().starts_with("Item") {
-                commands
-                    .spawn((
-                        Name::new("Burger"),
-                        SceneRoot(burger.clone()),
-                        Transform::from_translation(t.translation + parent_t.translation),
-                        ItemPickup,
-                    ))
-                    .with_children(|parent| {
-                        parent.spawn((
-                            Collider::cuboid(0.1, 0.1, 0.1),
-                            Transform::from_xyz(0.0, 0.1, 0.0),
-                            ItemPickupCollider,
-                        ));
-                    });
+                let mut ec = commands.spawn((
+                    Name::new("Burger"),
+                    SceneRoot(burger.clone()),
+                    Transform::from_translation(t.translation + parent_t.translation),
+                    ItemPickup,
+                ));
+                ec.observe(hook_item_on_click);
+                ec.with_children(|parent| {
+                    parent.spawn((
+                        Collider::cuboid(0.1, 0.1, 0.1),
+                        Transform::from_xyz(0.0, 0.1, 0.0),
+                        ItemPickupCollider,
+                    ));
+                });
             }
         }
     }

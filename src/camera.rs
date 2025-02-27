@@ -5,8 +5,8 @@ use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::{
     default, in_state, App, Asset, Assets, ButtonInput, Camera, Camera2d, Camera3d,
     ClearColorConfig, Commands, Component, EventReader, IntoSystemConfigs, Material,
-    MaterialPlugin, MeshMaterial3d, MouseButton, Plugin, Quat, Query, Res, ResMut, Resource,
-    Startup, Time, Transform, TypePath, Update, Vec3, With, Without,
+    MaterialPlugin, MeshMaterial3d, MouseButton, Plugin, Quat, Query, RayCastPickable, Res, ResMut,
+    Resource, Startup, Time, Transform, TypePath, Update, Vec3, With, Without,
 };
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::Material2d;
@@ -58,6 +58,7 @@ fn setup_camera(mut commands: Commands) {
         Transform::from_xyz(5.0, 15.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
         GameCamera,
         Bloom::NATURAL,
+        RayCastPickable,
     ));
     commands.spawn((
         Camera2d::default(),

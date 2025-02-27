@@ -1,4 +1,5 @@
 use crate::game::game::TrackedByKDTree;
+use bevy::prelude::RayCastPickable;
 use bevy::prelude::{Component, LinearRgba};
 use bevy_rapier3d::prelude::*;
 use rand::distr::StandardUniform;

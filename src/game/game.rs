@@ -2,6 +2,7 @@ use crate::camera::GameCamera;
 use crate::game::animation::{
     setup_animation_graph, AnimationPlugin, AnimationToPlay, PlayerOnStep,
 };
+use crate::game::effects::hook::PlayerSkillHookPlugin;
 use crate::game::effects::particles::ParticlesPlugin;
 use crate::game::effects::stomp::PlayerSkillStompPlugin;
 use crate::game::effects::vacuum::PlayerSkillVacuumPlugin;
@@ -57,7 +58,8 @@ impl Plugin for GamePlugin {
         app.add_plugins(MovementPlugin);
         app.add_plugins(ParticlesPlugin);
         app.add_plugins(PlayerSkillStompPlugin);
-        app.add_plugins(PlayerSkillVacuumPlugin);
+        // app.add_plugins(PlayerSkillVacuumPlugin);
+        app.add_plugins(PlayerSkillHookPlugin);
         app.add_plugins(HudPlugin);
         app.add_plugins(AnimationPlugin);
         app.add_plugins(
