@@ -102,7 +102,6 @@ fn on_scene_finish(
                     Transform::from_translation(t.translation + parent_t.translation),
                     ItemPickup,
                 ));
-                ec.observe(hook_item_on_click);
                 ec.with_children(|parent| {
                     parent.spawn((
                         Collider::cuboid(0.1, 0.1, 0.1),

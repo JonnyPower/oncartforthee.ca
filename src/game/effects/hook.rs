@@ -4,6 +4,8 @@ use crate::state::InGameState;
 use bevy::app::App;
 use bevy::input::ButtonInput;
 use bevy::math::Vec3;
+use bevy::prelude::OnAdd;
+use bevy::prelude::Over;
 use bevy::prelude::{
     in_state, Commands, Component, Entity, IntoSystemConfigs, MouseButton, Plugin, Query, Reflect,
     Res, Resource, Time, Transform, Update, With,
@@ -14,7 +16,6 @@ use bevy::prelude::{
 use bevy_inspector_egui::prelude::ReflectInspectorOptions;
 use bevy_inspector_egui::quick::ResourceInspectorPlugin;
 use bevy_inspector_egui::InspectorOptions;
-use blenvy::Observer;
 use rand::Rng;
 
 pub struct PlayerSkillHookPlugin;
@@ -24,6 +25,7 @@ impl Plugin for PlayerSkillHookPlugin {
             Update,
             (move_hooked_items, shake_effect_system).run_if(in_state(InGameState::Playing)),
         );
+        app.add_observer(setup_observers_on_added_item);
         app.insert_resource(HookResource {
             hook_range: 5.0,
             hooked_item_speed: 3.0,
@@ -59,15 +61,56 @@ impl ShakeEffect {
     }
 }
 
-// FIXME contain to this module by adding observer on newly spawned item pickups, or figure out how global observers work
+pub fn setup_observers_on_added_item(trigger: Trigger<OnAdd, ItemPickup>, mut commands: Commands) {
+    commands
+        .entity(trigger.entity())
+        .observe(hook_item_on_click)
+        .observe(hook_item_on_drag);
+}
+
 pub fn hook_item_on_click(
     trigger: Trigger<Pointer<Down>>,
-    mut commands: Commands,
+    commands: Commands,
     q_picked: Query<(Entity, &Transform), With<ItemPickup>>,
     player_query: Query<&Transform, (With<Player>, Without<ItemIsHooked>)>,
     hook_settings: Res<HookResource>,
 ) {
-    if let Ok((entity, item_t)) = q_picked.get(trigger.entity()) {
+    hook_item(
+        commands,
+        trigger.entity(),
+        q_picked,
+        player_query,
+        hook_settings,
+    );
+}
+
+pub fn hook_item_on_drag(
+    trigger: Trigger<Pointer<Over>>,
+    commands: Commands,
+    mouse_input: Res<ButtonInput<MouseButton>>,
+    q_picked: Query<(Entity, &Transform), With<ItemPickup>>,
+    player_query: Query<&Transform, (With<Player>, Without<ItemIsHooked>)>,
+    hook_settings: Res<HookResource>,
+) {
+    if mouse_input.pressed(MouseButton::Left) {
+        hook_item(
+            commands,
+            trigger.entity(),
+            q_picked,
+            player_query,
+            hook_settings,
+        );
+    }
+}
+
+fn hook_item(
+    mut commands: Commands,
+    triggering_entity: Entity,
+    q_picked: Query<(Entity, &Transform), With<ItemPickup>>,
+    player_query: Query<&Transform, (With<Player>, Without<ItemIsHooked>)>,
+    hook_settings: Res<HookResource>,
+) {
+    if let Ok((entity, item_t)) = q_picked.get(triggering_entity) {
         if let Ok(player_t) = player_query.get_single() {
             if item_t
                 .translation
@@ -85,7 +128,7 @@ pub fn hook_item_on_click(
     }
 }
 
-pub fn shake_effect_system(
+fn shake_effect_system(
     time: Res<Time>,
     mut commands: Commands,
     mut query: Query<(Entity, &mut Transform, &mut ShakeEffect)>,

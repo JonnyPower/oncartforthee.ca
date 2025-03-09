@@ -122,13 +122,28 @@ fn setup_scene(
                 CollisionGroups::new(Group::GROUP_3, Group::GROUP_1 | Group::GROUP_2), // Collision events when items touch floor
             ));
         });
-    let syrup = asset_server.load("models/syrup.glb#Scene0");
+    let shreddies = asset_server.load("models/item_ca_cereal_shreddies.glb#Scene0");
     commands
         .spawn((
-            Name::new("Syrup"),
-            SceneRoot(syrup),
+            Name::new("Cereal"),
+            SceneRoot(shreddies),
             ItemPickup,
             Transform::from_xyz(-2.0, 0.0, -2.0),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Collider::cuboid(0.1, 0.3, 0.1),
+                Transform::from_xyz(0.0, 0.3, 0.0),
+                ItemPickupCollider,
+            ));
+        });
+    let charms = asset_server.load("models/item_us_cereal_luckycharms.glb#Scene0");
+    commands
+        .spawn((
+            Name::new("Cereal"),
+            SceneRoot(charms),
+            ItemPickup,
+            Transform::from_xyz(-2.0, 0.0, -3.0),
         ))
         .with_children(|parent| {
             parent.spawn((
