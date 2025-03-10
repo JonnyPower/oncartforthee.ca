@@ -8,8 +8,9 @@ use crate::game::effects::stomp::PlayerSkillStompPlugin;
 use crate::game::effects::vacuum::PlayerSkillVacuumPlugin;
 use crate::game::hud::HudPlugin;
 use crate::game::item::{ItemIsStomped, ItemPickup, ItemPickupCollider, ItemPickupCountry};
-use crate::game::map::map_object::MiscShopObjects;
+use crate::game::map::misc_shelf::MiscShelf;
 use crate::game::map::wall::spawn_walls;
+use crate::game::map::*;
 use crate::game::movement::{MovementPlugin, MovementSettings};
 use crate::game::player::PlayerPlugin;
 use crate::state::{InGameState, TitleMenuState};
@@ -62,6 +63,7 @@ impl Plugin for GamePlugin {
         app.add_plugins(PlayerSkillHookPlugin);
         app.add_plugins(HudPlugin);
         app.add_plugins(AnimationPlugin);
+        app.add_plugins(MapPlugin);
         app.add_plugins(
             AutomaticUpdate::<TrackedByKDTree>::new().with_spatial_ds(SpatialStructure::KDTree3),
         );
@@ -189,7 +191,7 @@ fn setup_scene(
             continue;
         }
         for j in -4..4 {
-            let shelf = MiscShopObjects::Shelf.spawn(&mut commands, &asset_server);
+            let shelf = MiscShelf.spawn(&mut commands, &asset_server);
             commands.entity(shelf).insert(Transform::from_xyz(
                 3.0 * i as f32,
                 0.0,
